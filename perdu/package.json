@@ -1,0 +1,41 @@
+{
+  "name": "@motia/perdu",
+  "version": "1.0.0",
+  "description": "Perdu (Persist & Durable) integration for Motia - Self-contained durability layer",
+  "private": true,
+  "scripts": {
+    "setup": "./scripts/setup-perdu-dev.sh",
+    "test-connection": "./scripts/test-perdu-connection.sh",
+    "start-services": "docker-compose -f docker-compose.perdu.yml up -d",
+    "stop-services": "docker-compose -f docker-compose.perdu.yml down",
+    "reset-services": "docker-compose -f docker-compose.perdu.yml down --volumes && docker-compose -f docker-compose.perdu.yml up -d",
+    "logs": "docker-compose -f docker-compose.perdu.yml logs -f",
+    "psql-state": "docker exec -it motia-perdu-postgres psql -U motia -d motia_state_dev",
+    "psql-events": "docker exec -it motia-perdu-postgres psql -U motia -d motia_events_dev",
+    "psql-execution": "docker exec -it motia-perdu-postgres psql -U motia -d motia_execution_dev"
+  },
+  "dependencies": {
+    "@dbos-inc/dbos-sdk": "^0.9.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "motia",
+    "perdu",
+    "durability",
+    "persistence",
+    "dbos",
+    "postgresql",
+    "workflow"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/motia/motia.git",
+    "directory": "perdu"
+  },
+  "license": "MIT"
+}

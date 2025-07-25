@@ -1,0 +1,51 @@
+version: '3.8'
+
+services:
+  # PostgreSQL for perdu persistence
+  perdu-postgres:
+    image: postgres:15
+    container_name: motia-perdu-postgres
+    environment:
+      POSTGRES_USER: motia
+      POSTGRES_PASSWORD: motia_dev
+      POSTGRES_DB: motia_dev
+    ports:
+      - "5433:5432"  # Use different port to avoid conflicts
+    volumes:
+      - perdu_postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-perdu-postgres.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - perdu-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U motia -d motia_dev"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # pgAdmin for database management
+  perdu-pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: motia-perdu-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@motia.dev
+      PGADMIN_DEFAULT_PASSWORD: admin123
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    ports:
+      - "5051:80"  # Use different port to avoid conflicts
+    volumes:
+      - perdu_pgadmin_data:/var/lib/pgadmin
+    networks:
+      - perdu-network
+    depends_on:
+      perdu-postgres:
+        condition: service_healthy
+
+volumes:
+  perdu_postgres_data:
+    driver: local
+  perdu_pgadmin_data:
+    driver: local
+
+networks:
+  perdu-network:
+    driver: bridge
