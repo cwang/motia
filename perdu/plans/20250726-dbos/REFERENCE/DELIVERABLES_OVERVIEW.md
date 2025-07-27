@@ -132,7 +132,6 @@ Weeks 8-9:  PR #5 - Documentation and Examples
 
 ### PR #0 Adds
 - 🆕 **PostgreSQL**: Port 5432 with development databases
-- 🆕 **pgAdmin**: Port 8080 for database administration (optional)
 - 🆕 **Environment Variables**: Database connection configuration
 - 🆕 **Setup Scripts**: Automated development environment setup
 

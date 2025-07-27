@@ -1,5 +1,7 @@
 # Perdu Upstream Integration Requirements
 
+> **TL;DR**: Only 6 upstream files need modification (~20-30 lines total) using factory patterns and optional configuration. 95% of perdu code lives in the dedicated `perdu/` directory. Fork compatibility score: 8.5/10.
+
 ## Overview
 
 This document identifies the **unavoidable** modifications to upstream motia.dev files required for perdu integration. While perdu is designed to be maximally fork-friendly, some minimal integration points are necessary to enable the feature.

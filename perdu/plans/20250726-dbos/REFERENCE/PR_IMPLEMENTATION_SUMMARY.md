@@ -28,7 +28,7 @@ This document summarizes the 6-phase PR implementation plan for integrating perd
 - `docs/development-setup.md` - Updated dev documentation
 
 **Files Modified**:
-- `compose.yml` - Add PostgreSQL and pgAdmin services
+- `compose.yml` - Add PostgreSQL services
 - `playground/.env.example` - Add database connection examples
 - `MONOREPO-README.md` - Update prerequisites and setup instructions
 

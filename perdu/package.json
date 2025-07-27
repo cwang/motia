@@ -10,9 +10,9 @@
     "stop-services": "docker-compose -f docker-compose.perdu.yml down",
     "reset-services": "docker-compose -f docker-compose.perdu.yml down --volumes && docker-compose -f docker-compose.perdu.yml up -d",
     "logs": "docker-compose -f docker-compose.perdu.yml logs -f",
-    "psql-state": "docker exec -it motia-perdu-postgres psql -U motia -d motia_state_dev",
-    "psql-events": "docker exec -it motia-perdu-postgres psql -U motia -d motia_events_dev",
-    "psql-execution": "docker exec -it motia-perdu-postgres psql -U motia -d motia_execution_dev"
+    "psql-state": "docker exec -it motia-perdu-postgres psql -U motia -d motia_perdu_dev",
+    "psql-events": "docker exec -it motia-perdu-postgres psql -U motia -d motia_perdu_dev",
+    "psql-execution": "docker exec -it motia-perdu-postgres psql -U motia -d motia_perdu_dev"
   },
   "dependencies": {
     "@dbos-inc/dbos-sdk": "^0.9.0"

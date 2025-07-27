@@ -17,31 +17,31 @@ fi
 
 echo "🔍 Testing perdu database connections..."
 
-# Test state database
-echo -n "Testing state database... "
-if docker exec motia-perdu-postgres psql -U motia -d motia_state_dev -c "SELECT COUNT(*) FROM motia_state;" > /dev/null 2>&1; then
+# Test database using environment variable
+echo -n "Testing perdu database (${PERDU_DB_NAME})... "
+if docker exec motia-perdu-postgres psql -U motia -d "${PERDU_DB_NAME}" -c "SELECT COUNT(*) FROM motia_state;" > /dev/null 2>&1; then
     echo "✅"
 else
     echo "❌"
     exit 1
 fi
 
-# Test events database
-echo -n "Testing events database... "
-if docker exec motia-perdu-postgres psql -U motia -d motia_events_dev -c "SELECT COUNT(*) FROM motia_events;" > /dev/null 2>&1; then
+# Test events table in same database
+echo -n "Testing events table... "
+if docker exec motia-perdu-postgres psql -U motia -d "${PERDU_DB_NAME}" -c "SELECT COUNT(*) FROM motia_events;" > /dev/null 2>&1; then
     echo "✅"
 else
     echo "❌"
     exit 1
 fi
 
-# Test execution database
-echo -n "Testing execution database... "
-if docker exec motia-perdu-postgres psql -U motia -d motia_execution_dev -c "SELECT COUNT(*) FROM motia_workflows;" > /dev/null 2>&1; then
+# Test workflows table in same database
+echo -n "Testing workflows table... "
+if docker exec motia-perdu-postgres psql -U motia -d "${PERDU_DB_NAME}" -c "SELECT COUNT(*) FROM motia_workflows;" > /dev/null 2>&1; then
     echo "✅"
 else
     echo "❌"
     exit 1
 fi
 
-echo "🎉 All database connections successful!"
+echo "🎉 All perdu database connections successful!"

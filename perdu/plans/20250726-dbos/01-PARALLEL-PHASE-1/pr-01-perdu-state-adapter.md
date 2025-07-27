@@ -13,18 +13,20 @@ Implement perdu as an optional state backend adapter without modifying core exec
 
 ### Files to Create
 
-#### 1. `packages/core/src/state/adapters/dbos-state-adapter.ts`
+#### 1. `packages/core/src/state/adapters/perdu-state-adapter.ts`
 **Purpose**: New perdu-backed state adapter implementing StateAdapter interface
 
 **Key Features**:
 - Implements complete StateAdapter interface with PostgreSQL backend
-- Uses perdu SDK for durable step execution
+- Uses DBOS SDK for durable execution and database operations
+- Leverages DBOS transactions for guaranteed durability and consistency
 - Supports all existing state operations (get, set, delete, clear, getGroup)
 - Automatic type conversion to match existing behavior
-- Database schema initialization
+- Database schema initialization through DBOS SQL operations
 
 **Dependencies**:
-- `@dbos-inc/dbos-sdk` (new dependency)
+- `@dbos-inc/dbos-sdk@^1.0.0` for durable execution and database operations
+- `pg@^8.11.0` and `@types/pg@^8.10.0` for PostgreSQL support (new dependencies)
 - Existing StateAdapter interface
 - PostgreSQL database connection
 
@@ -34,7 +36,7 @@ Implement perdu as an optional state backend adapter without modifying core exec
 **Structure**:
 ```typescript
 export interface perduStateConfig {
-  adapter: 'dbos'
+  adapter: 'perdu'
   database: {
     host: string
     port: number
@@ -51,14 +53,13 @@ export interface perduStateConfig {
 **Changes**:
 - Add import for perduStateAdapter
 - Extend AdapterConfig type union with perduStateConfig
-- Add conditional branch for 'dbos' adapter type
+- Add conditional branch for 'perdu' adapter type
 - Maintain existing factory function behavior
 
 **Risk Level**: LOW - Only adds new conditional branch, no changes to existing logic
 
 #### 2. `package.json` (workspace root)
 **Changes**:
-- Add `@dbos-inc/dbos-sdk` as dependency
 - Add `pg` and `@types/pg` for PostgreSQL support
 
 ### Database Schema
@@ -82,11 +83,12 @@ CREATE INDEX idx_motia_state_updated_at ON motia_state(updated_at);
 ### Phase 1: Write Failing Tests First (Days 1-2)
 
 #### 1.1 Core Unit Tests Setup
-**File**: `packages/core/src/state/adapters/__tests__/dbos-state-adapter.test.ts`
+**File**: `packages/core/src/state/adapters/__tests__/perdu-state-adapter.test.ts`
 
 ```typescript
-import { perduStateAdapter } from '../dbos-state-adapter'
-import { perdu } from '@dbos-inc/dbos-sdk'
+import { DBOS } from '@dbos-inc/dbos-sdk'
+import { perduStateAdapter } from '../perdu-state-adapter'
+import { Pool } from 'pg'
 
 describe('perduStateAdapter', () => {
   let adapter: perduStateAdapter
@@ -94,7 +96,7 @@ describe('perduStateAdapter', () => {
 
   beforeAll(async () => {
     testConfig = {
-      adapter: 'dbos',
+      adapter: 'perdu',
       database: {
         host: 'localhost',
         port: 5432,
@@ -121,18 +123,18 @@ describe('perduStateAdapter', () => {
     test('should connect to PostgreSQL database', async () => {
       // This will FAIL initially - implement to make it pass
       expect(adapter).toBeDefined()
-      expect(adapter.dbos).toBeDefined()
+      expect(adapter.pool).toBeDefined()
     })
 
     test('should create motia_state table if not exists', async () => {
       // This will FAIL initially - implement schema creation
-      const tableExists = await adapter.dbos.sql`
+      const result = await adapter.pool.query(`
         SELECT EXISTS (
           SELECT FROM information_schema.tables 
           WHERE table_name = 'motia_state'
         )
-      `
-      expect(tableExists[0].exists).toBe(true)
+      `)
+      expect(result.rows[0].exists).toBe(true)
     })
 
     test('should handle connection failures gracefully', async () => {
@@ -229,7 +231,7 @@ describe('perduStateAdapter', () => {
     test('should handle database connection errors', async () => {
       // This will FAIL initially - implement connection error handling
       // Mock database failure
-      jest.spyOn(adapter.dbos, 'sql').mockRejectedValueOnce(new Error('Connection failed'))
+      jest.spyOn(adapter.pool, 'query').mockRejectedValueOnce(new Error('Connection failed'))
       
       await expect(adapter.get('test-trace-id', 'key')).rejects.toThrow('Connection failed')
     })
@@ -237,10 +239,10 @@ describe('perduStateAdapter', () => {
     test('should handle invalid JSON data gracefully', async () => {
       // This will FAIL initially - implement JSON error handling
       // Manually insert invalid JSON to test recovery
-      await adapter.dbos.sql`
+      await adapter.pool.query(`
         INSERT INTO motia_state (trace_id, key, value, type)
-        VALUES ('test-trace-id', 'invalid-json', 'invalid-json-string', 'string')
-      `
+        VALUES ($1, $2, $3, $4)
+      `, ['test-trace-id', 'invalid-json', 'invalid-json-string', 'string'])
       
       // Should not crash the adapter
       const result = await adapter.get('test-trace-id', 'invalid-json')
@@ -277,14 +279,14 @@ describe('perduStateAdapter', () => {
 
 ```typescript
 import { createStateAdapter } from '../create-state-adapter'
-import { perduStateAdapter } from '../adapters/dbos-state-adapter'
+import { perduStateAdapter } from '../adapters/perdu-state-adapter'
 import { FileStateAdapter } from '../adapters/default-state-adapter'
 
 describe('State Adapter Factory Integration', () => {
-  test('should create perduStateAdapter when config.adapter === "dbos"', () => {
+  test('should create perduStateAdapter when config.adapter === "perdu"', () => {
     // This will FAIL initially - implement factory logic
     const config = {
-      adapter: 'dbos' as const,
+      adapter: 'perdu' as const,
       database: {
         host: 'localhost',
         port: 5432,
@@ -301,7 +303,7 @@ describe('State Adapter Factory Integration', () => {
   test('should fall back to FileStateAdapter when perdu config invalid', () => {
     // This will FAIL initially - implement fallback logic
     const invalidConfig = {
-      adapter: 'dbos' as const,
+      adapter: 'perdu' as const,
       database: {
         host: '',
         port: 0,
@@ -330,7 +332,7 @@ describe('State Adapter Factory Integration', () => {
 ```
 
 #### 1.3 Performance Test Setup
-**File**: `packages/core/src/state/__tests__/dbos-state-performance.test.ts`
+**File**: `packages/core/src/state/__tests__/perdu-state-performance.test.ts`
 
 ```typescript
 describe('perduStateAdapter Performance', () => {
@@ -380,14 +382,15 @@ describe('perduStateAdapter Performance', () => {
 ### Phase 2: Implement to Make Tests Pass (Days 3-7)
 
 #### 2.1 Basic Implementation Structure
-**File**: `packages/core/src/state/adapters/dbos-state-adapter.ts`
+**File**: `packages/core/src/state/adapters/perdu-state-adapter.ts`
 
 ```typescript
-import { perdu } from '@dbos-inc/dbos-sdk'
+import { DBOS } from '@dbos-inc/dbos-sdk'
+import { Pool } from 'pg'
 import { StateAdapter } from '../state-adapter'
 
 export interface perduStateConfig {
-  adapter: 'dbos'
+  adapter: 'perdu'
   database: {
     host: string
     port: number
@@ -398,27 +401,56 @@ export interface perduStateConfig {
 }
 
 export class perduStateAdapter implements StateAdapter {
-  public dbos: perdu
+  public pool: Pool
   
   constructor(private config: perduStateConfig) {
     // Initial failing implementation - will make tests pass incrementally
-    this.dbos = new perdu({
-      database: config.database,
-      application: { name: 'motia-state', version: '1.0.0' }
+    this.pool = new Pool({
+      host: config.database.host,
+      port: config.database.port,
+      database: config.database.database,
+      user: config.database.username,
+      password: config.database.password
     })
   }
 
+  @DBOS.transaction()
   async init(): Promise<void> {
+    // Initialize database schema using DBOS transaction for durability
+    await DBOS.sql`
+      CREATE TABLE IF NOT EXISTS motia_state (
+        trace_id VARCHAR(255) NOT NULL,
+        key VARCHAR(255) NOT NULL,
+        value JSONB NOT NULL,
+        type VARCHAR(50) NOT NULL,
+        updated_at TIMESTAMP DEFAULT NOW(),
+        PRIMARY KEY (trace_id, key)
+      )
+    `;
     // START FAILING - implement to make tests pass
     throw new Error('Not implemented yet - TDD implementation needed')
   }
 
+  @DBOS.transaction()
   async get(traceId: string, key: string): Promise<unknown> {
+    // Use DBOS SQL operations for durable state retrieval
+    const result = await DBOS.sql`
+      SELECT value, type FROM motia_state 
+      WHERE trace_id = ${traceId} AND key = ${key}
+    `;
     // START FAILING - implement to make tests pass
     throw new Error('Not implemented yet - TDD implementation needed')
   }
 
+  @DBOS.transaction()
   async set(traceId: string, key: string, value: unknown): Promise<void> {
+    // Use DBOS SQL operations for durable state persistence
+    await DBOS.sql`
+      INSERT INTO motia_state (trace_id, key, value, type)
+      VALUES (${traceId}, ${key}, ${JSON.stringify(value)}, ${typeof value})
+      ON CONFLICT (trace_id, key) 
+      DO UPDATE SET value = EXCLUDED.value, type = EXCLUDED.type, updated_at = NOW()
+    `;
     // START FAILING - implement to make tests pass
     throw new Error('Not implemented yet - TDD implementation needed')
   }
@@ -444,7 +476,7 @@ For each test case:
 ### Phase 3: Integration & Advanced Testing (Days 8-10)
 
 #### 3.1 Multi-Instance Testing
-**File**: `packages/core/src/__tests__/dbos-state-multi-instance.test.ts`
+**File**: `packages/core/src/__tests__/perdu-state-multi-instance.test.ts`
 
 ```typescript
 describe('Multi-Instance State Sharing', () => {
@@ -506,10 +538,10 @@ npm test -- --watch packages/core/src/state
 npm test -- --coverage packages/core/src/state
 
 # Run performance benchmarks
-npm test -- packages/core/src/state/__tests__/dbos-state-performance.test.ts
+npm test -- packages/core/src/state/__tests__/perdu-state-performance.test.ts
 
 # Run multi-instance tests (requires PostgreSQL)
-npm test -- packages/core/src/__tests__/dbos-state-multi-instance.test.ts
+npm test -- packages/core/src/__tests__/perdu-state-multi-instance.test.ts
 ```
 
 ### Test Execution Order (TDD)
@@ -534,11 +566,11 @@ state:
 ### Production (Enabled)
 ```yaml
 state:
-  adapter: dbos
+  adapter: perdu
   database:
     host: localhost
     port: 5432
-    database: motia_dbos
+    database: motia_postgres
     username: motia
     password: "${MOTIA_DB_PASSWORD}"
 ```
@@ -554,7 +586,7 @@ state:
 
 ## Risk Mitigation
 1. **Database Connection Failures**: Graceful fallback with error logging
-2. **Schema Changes**: Use perdu SDK migration capabilities
+2. **Schema Changes**: Use PostgreSQL migration scripts
 3. **Performance Regression**: Benchmark against existing adapters
 4. **Configuration Errors**: Validate config and provide clear error messages
 

@@ -17,12 +17,12 @@ REDIS_URL="redis://:pingpong@localhost:6379"
 # PostgreSQL configuration (for perdu integration)
 POSTGRES_HOST="localhost"
 POSTGRES_PORT="5432"
-POSTGRES_DATABASE="motia_dev"
+POSTGRES_DATABASE="motia_perdu"
 POSTGRES_USERNAME="motia"
-POSTGRES_PASSWORD="motia_dev"
+POSTGRES_PASSWORD="motia_perdu"
 
 # perdu configuration (for testing)
-MOTIA_DB_PASSWORD="motia_dev"
+MOTIA_DB_PASSWORD="motia_perdu"
 MOTIA_DURABILITY_ENABLED="false"
 ```
 
@@ -33,10 +33,6 @@ The following services were added to the original `compose.yml` but are now in `
 ### PostgreSQL Service
 - **Original**: Port 5432
 - **perdu**: Port 5433 (in docker-compose.perdu.yml)
-
-### pgAdmin Service  
-- **Original**: Port 8080
-- **perdu**: Port 5051 (in docker-compose.perdu.yml)
 
 ## Setup Instructions (from MONOREPO-README.md)
 
@@ -50,16 +46,10 @@ The Docker setup provides:
 - **Redis Stack** (port 6379) - Current state management
 - **Redis UI** (port 8001) - Redis administration interface
 - **PostgreSQL** (port 5432) - perdu integration database
-- **pgAdmin** (port 8080) - PostgreSQL administration interface (optional)
 
-To start only core services (without admin UIs):
+To start core services:
 ```bash
 docker compose up -d redis-stack postgres
-```
-
-To include admin interfaces:
-```bash
-docker compose --profile ui up -d
 ```
 ```
 

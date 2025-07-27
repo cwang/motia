@@ -30,13 +30,13 @@ After analyzing all PR specifications, here's the optimized concurrent implement
 ### Week 1: Foundation Setup
 **PR #0: Development Environment Setup**
 - **Team**: 1 infrastructure-focused developer
-- **Deliverable**: PostgreSQL + pgAdmin alongside existing Redis
+- **Deliverable**: PostgreSQL alongside existing Redis
 - **Blockers**: None - extends current Docker setup
 - **Success Criteria**: Both Redis and PostgreSQL accessible
 
 **Files Modified**:
 ```
-compose.yml                    # Add PostgreSQL service
+compose.yml                    # Add PostgreSQL services
 playground/.env.example        # Add database variables  
 MONOREPO-README.md            # Update setup instructions
 scripts/dev-setup.sh          # New automated setup

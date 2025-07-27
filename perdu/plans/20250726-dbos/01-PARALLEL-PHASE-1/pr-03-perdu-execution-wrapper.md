@@ -14,27 +14,36 @@ Implement perdu workflow durability for step execution through a non-intrusive w
 
 ### Files to Create
 
-#### 1. `packages/core/src/execution/dbos-process-manager.ts`
+#### 1. `packages/core/src/execution/perdu-process-manager.ts`
 **Purpose**: perdu-enhanced ProcessManager that wraps execution in durable workflows
 
 **Key Features**:
 - Extends existing ProcessManager class
-- Wraps process execution in perdu workflows for durability
+- Uses DBOS SDK for durable workflow execution
+- Wraps process execution in DBOS transactions for guaranteed durability
 - Provides automatic retry and recovery capabilities
 - Maintains exact same interface as ProcessManager
-- Distributed execution coordination
+- Distributed execution coordination through DBOS
 - Execution state persistence and recovery
 
 **Architecture**:
 ```typescript
+import { DBOS } from '@dbos-inc/dbos-sdk'
+
 export class perduProcessManager extends ProcessManager {
   // Inherits all ProcessManager functionality
-  // Wraps critical methods with perdu workflow annotations
-  // Provides transparent durability layer
+  // Wraps critical methods with DBOS-backed durability
+  // Provides transparent durability layer using DBOS transactions
+  
+  @DBOS.workflow()
+  async spawn(command: string, args: string[], options: any): Promise<any> {
+    // Wrap process execution in DBOS workflow for durability
+    return await super.spawn(command, args, options)
+  }
 }
 ```
 
-#### 2. `packages/core/src/execution/dbos-execution-config.ts`
+#### 2. `packages/core/src/execution/perdu-execution-config.ts`
 **Purpose**: Configuration interfaces and validation for perdu execution
 
 **Structure**:
@@ -42,7 +51,7 @@ export class perduProcessManager extends ProcessManager {
 export interface perduExecutionConfig {
   durability: {
     enabled: true
-    adapter: 'dbos'
+    adapter: 'perdu'
     database: {
       host: string
       port: number
@@ -141,17 +150,17 @@ CREATE INDEX idx_motia_execution_locks_expires_at ON motia_execution_locks(expir
 ## Test Plan
 
 ### Unit Tests
-**File**: `packages/core/src/execution/__tests__/dbos-process-manager.test.ts`
+**File**: `packages/core/src/execution/__tests__/perdu-process-manager.test.ts`
 
 #### Test Scenarios:
 1. **Inheritance Tests**
    - ✅ Should extend ProcessManager correctly
    - ✅ Should maintain all parent class methods
    - ✅ Should preserve original method behavior when durability disabled
-   - ✅ Should initialize perdu SDK correctly
+   - ✅ Should initialize PostgreSQL connection correctly
 
 2. **Workflow Wrapping Tests**
-   - ✅ Should wrap spawn() method in perdu workflow
+   - ✅ Should wrap spawn() method in PostgreSQL-backed workflow
    - ✅ Should persist workflow state to database
    - ✅ Should track step execution progress
    - ✅ Should handle workflow completion correctly
@@ -160,7 +169,7 @@ CREATE INDEX idx_motia_execution_locks_expires_at ON motia_execution_locks(expir
    - ✅ Should handle process execution failures
    - ✅ Should retry failed executions according to configuration
    - ✅ Should respect maximum retry limits
-   - ✅ Should fallback to regular ProcessManager on perdu failures
+   - ✅ Should fallback to regular ProcessManager on PostgreSQL failures
 
 4. **Recovery Tests**
    - ✅ Should recover incomplete workflows on startup
@@ -169,17 +178,17 @@ CREATE INDEX idx_motia_execution_locks_expires_at ON motia_execution_locks(expir
    - ✅ Should clean up completed workflows
 
 ### Integration Tests
-**File**: `packages/core/src/__tests__/dbos-execution-integration.test.ts`
+**File**: `packages/core/src/__tests__/perdu-execution-integration.test.ts`
 
 #### Test Scenarios:
 1. **Factory Function Tests**
    - ✅ Should create perduProcessManager when durability enabled
    - ✅ Should create regular ProcessManager when durability disabled
-   - ✅ Should handle invalid perdu configuration gracefully
-   - ✅ Should fall back to ProcessManager on perdu connection failure
+   - ✅ Should handle invalid PostgreSQL configuration gracefully
+   - ✅ Should fall back to ProcessManager on PostgreSQL connection failure
 
 2. **Call Step File Integration**
-   - ✅ Should execute steps through perdu workflows when enabled
+   - ✅ Should execute steps through PostgreSQL-backed workflows when enabled
    - ✅ Should maintain identical behavior to regular execution
    - ✅ Should preserve all existing error handling
    - ✅ Should support all step types (JavaScript, Python, shell, etc.)
@@ -191,7 +200,7 @@ CREATE INDEX idx_motia_execution_locks_expires_at ON motia_execution_locks(expir
    - ✅ Should maintain execution locks correctly
 
 ### End-to-End Tests
-**File**: `packages/core/src/__tests__/dbos-execution-e2e.test.ts`
+**File**: `packages/core/src/__tests__/perdu-execution-e2e.test.ts`
 
 #### Test Scenarios:
 1. **Durability Tests**
@@ -213,7 +222,7 @@ CREATE INDEX idx_motia_execution_locks_expires_at ON motia_execution_locks(expir
    - ✅ Should support configuration hot reloading
 
 ### Failure Simulation Tests
-**File**: `packages/core/src/__tests__/dbos-failure-simulation.test.ts`
+**File**: `packages/core/src/__tests__/perdu-failure-simulation.test.ts`
 
 #### Test Scenarios:
 1. **Process Failure Simulation**
@@ -246,7 +255,7 @@ CREATE INDEX idx_motia_execution_locks_expires_at ON motia_execution_locks(expir
 ```yaml
 durability:
   enabled: true
-  adapter: dbos
+  adapter: perdu
   database:
     host: postgres.example.com
     port: 5432
@@ -264,7 +273,7 @@ durability:
 ```yaml
 durability:
   enabled: true
-  adapter: dbos
+  adapter: perdu
   database:
     host: localhost
     port: 5432
@@ -304,7 +313,8 @@ durability:
 - Recovery procedures for corrupted workflow state
 
 ## Dependencies
-- `@dbos-inc/dbos-sdk@^1.0.0` (from PR #1)
+- `@dbos-inc/dbos-sdk@^1.0.0`
+- `pg@^8.11.0` and `@types/pg@^8.10.0` (from PR #1)
 - PostgreSQL database with transaction support
 - Existing ProcessManager and call-step-file infrastructure
 

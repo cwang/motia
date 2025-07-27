@@ -34,9 +34,8 @@ perdu/
 
 **Key Features**:
 - PostgreSQL on port 5433 (not 5432 to avoid conflicts)
-- pgAdmin on port 5051 (not 5050 to avoid conflicts)
 - Separate Docker networks (`perdu-network`)
-- Independent volume names (`perdu_postgres_data`, `perdu_pgadmin_data`)
+- Independent volume names (`perdu_postgres_data`)
 - Health checks and service dependencies
 
 #### 2. `perdu/scripts/setup-perdu-dev.sh`
@@ -81,7 +80,6 @@ PERDU_DB_STATE=motia_state_dev
 PERDU_DB_EVENTS=motia_events_dev
 PERDU_DB_EXECUTION=motia_execution_dev
 PERDU_DB_TEST=motia_test
-PERDU_PGADMIN_URL=http://localhost:5051
 ```
 
 ## Setup Process
@@ -133,7 +131,6 @@ npm run logs
 | Service | Port | Purpose | Conflicts Avoided |
 |---------|------|---------|-------------------|
 | PostgreSQL | 5433 | Database | 5432 (default postgres) |
-| pgAdmin | 5051 | Admin UI | 5050 (motia pgAdmin if exists) |
 
 ## Database Schema
 
@@ -254,7 +251,6 @@ docker-compose -f docker-compose.perdu.yml ps
 
 ## Success Criteria
 - [ ] PostgreSQL running on port 5433 without conflicts
-- [ ] pgAdmin accessible at http://localhost:5051
 - [ ] All perdu databases created and accessible
 - [ ] All required tables exist with correct schema
 - [ ] Connection validation scripts pass
@@ -265,7 +261,7 @@ docker-compose -f docker-compose.perdu.yml ps
 ## Risk Mitigation
 
 ### Port Conflicts
-- **Solution**: Use non-standard ports (5433, 5051) to avoid conflicts
+- **Solution**: Use non-standard port (5433) to avoid conflicts
 - **Validation**: Connection tests verify correct port usage
 
 ### Database Connection Issues

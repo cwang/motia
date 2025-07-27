@@ -14,7 +14,7 @@ Wire up the configuration system to enable perdu features through config files, 
 
 ### Files to Create
 
-#### 1. `packages/core/src/config/dbos-config.ts`
+#### 1. `packages/core/src/config/perdu-config.ts`
 **Purpose**: Centralized perdu configuration management and validation
 
 **Key Features**:
@@ -86,8 +86,8 @@ export class perduConfigManager {
 
 ```yaml
 # Complete perdu Configuration Schema
-dbos:
-  # Shared database connection (optional)
+perdu:
+  # Shared PostgreSQL database connection (optional)
   database:
     host: string
     port: number
@@ -99,9 +99,9 @@ dbos:
 
 # State adapter configuration
 state:
-  adapter: 'file' | 'memory' | 'redis' | 'dbos'
-  # If adapter is 'dbos':
-  database: # Uses shared dbos.database or override
+  adapter: 'file' | 'memory' | 'redis' | 'perdu'
+  # If adapter is 'perdu':
+  database: # Uses shared perdu.database or override
     host: string
     port: number
     database: string
@@ -110,9 +110,9 @@ state:
 
 # Event manager configuration
 events:
-  adapter: 'memory' | 'dbos'
-  # If adapter is 'dbos':
-  database: # Uses shared dbos.database or override
+  adapter: 'memory' | 'perdu'
+  # If adapter is 'perdu':
+  database: # Uses shared perdu.database or override
     host: string
     port: number
     database: string
@@ -126,8 +126,8 @@ events:
 # Execution durability configuration
 durability:
   enabled: boolean (default: false)
-  adapter: 'dbos'
-  database: # Uses shared dbos.database or override
+  adapter: 'perdu'
+  database: # Uses shared perdu.database or override
     host: string
     port: number
     database: string
@@ -143,7 +143,7 @@ durability:
 ## Test Plan
 
 ### Unit Tests
-**File**: `packages/core/src/config/__tests__/dbos-config.test.ts`
+**File**: `packages/core/src/config/__tests__/perdu-config.test.ts`
 
 #### Test Scenarios:
 1. **Configuration Validation Tests**
@@ -193,7 +193,7 @@ durability:
    - ✅ Should maintain service availability during config updates
 
 ### End-to-End Tests
-**File**: `packages/core/src/__tests__/dbos-config-e2e.test.ts`
+**File**: `packages/core/src/__tests__/perdu-config-e2e.test.ts`
 
 #### Test Scenarios:
 1. **Complete Integration Tests**
@@ -220,7 +220,7 @@ durability:
 ```yaml
 # Enable only perdu state persistence
 state:
-  adapter: dbos
+  adapter: perdu
   database:
     host: localhost
     port: 5432
@@ -231,8 +231,8 @@ state:
 
 ### Full Configuration (All Features)
 ```yaml
-# Shared database configuration
-dbos:
+# Shared PostgreSQL database configuration
+perdu:
   database:
     host: postgres.example.com
     port: 5432
@@ -244,13 +244,13 @@ dbos:
 
 # State persistence
 state:
-  adapter: dbos
-  # Uses shared dbos.database
+  adapter: perdu
+  # Uses shared perdu.database
 
 # Event management
 events:
-  adapter: dbos
-  # Uses shared dbos.database
+  adapter: perdu
+  # Uses shared perdu.database
   options:
     batchSize: 200
     pollInterval: 500
@@ -259,8 +259,8 @@ events:
 # Execution durability
 durability:
   enabled: true
-  adapter: dbos
-  # Uses shared dbos.database
+  adapter: perdu
+  # Uses shared perdu.database
   options:
     maxRetries: 5
     retryDelayMs: 10000
@@ -271,7 +271,7 @@ durability:
 ### Environment Variable Configuration
 ```yaml
 # Production configuration with environment variables
-dbos:
+perdu:
   database:
     host: "${POSTGRES_HOST}"
     port: "${POSTGRES_PORT:-5432}"
@@ -281,21 +281,21 @@ dbos:
     ssl: "${POSTGRES_SSL:-true}"
 
 state:
-  adapter: dbos
+  adapter: perdu
 
 events:
-  adapter: dbos
+  adapter: perdu
 
 durability:
   enabled: "${MOTIA_DURABILITY_ENABLED:-true}"
-  adapter: dbos
+  adapter: perdu
 ```
 
 ### Development Configuration
 ```yaml
-# Local development with individual databases
+# Local development with individual PostgreSQL databases
 state:
-  adapter: dbos
+  adapter: perdu
   database:
     host: localhost
     port: 5432
@@ -304,7 +304,7 @@ state:
     password: "dev"
 
 events:
-  adapter: dbos
+  adapter: perdu
   database:
     host: localhost
     port: 5432
@@ -314,7 +314,7 @@ events:
 
 durability:
   enabled: true
-  adapter: dbos
+  adapter: perdu
   database:
     host: localhost
     port: 5432

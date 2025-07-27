@@ -15,7 +15,6 @@ The perdu (Persist & Durable) integration has been successfully reorganized as a
 
 **Services Running:**
 - 🐘 **PostgreSQL**: localhost:5433 (no conflicts with existing setup)
-- 🗄️ **pgAdmin**: http://localhost:5051 (database management UI)
 
 **Databases Created:**
 - `motia_state_dev` - State persistence
@@ -150,9 +149,6 @@ docker exec motia-perdu-postgres pg_isready -U motia -d motia_dev
 docker exec motia-perdu-postgres psql -U motia -d motia_state_dev -c "\dt"
 # Expected: List of relations including motia_state
 
-# pgAdmin access
-curl -s http://localhost:5051 | grep -q "pgAdmin"
-# Expected: pgAdmin UI accessible
 ```
 
 ### ✅ Configuration Verification
@@ -163,7 +159,7 @@ ls -la perdu/.env.perdu
 
 # Docker stack status
 docker-compose -f perdu/docker-compose.perdu.yml ps
-# Expected: Both postgres and pgadmin running/healthy
+# Expected: postgres running/healthy
 ```
 
 ## 📊 Success Metrics
@@ -173,7 +169,7 @@ docker-compose -f perdu/docker-compose.perdu.yml ps
 | Rename to perdu | ✅ | All DBOS references changed to perdu |
 | Self-contained | ✅ | Everything in dedicated `perdu/` directory |
 | Zero file modifications | ✅ | No changes to existing motia files |
-| Services running | ✅ | PostgreSQL (5433) + pgAdmin (5051) |
+| Services running | ✅ | PostgreSQL (5433) |
 | Databases created | ✅ | 5 databases with proper schemas |
 | Fork-friendly | ✅ | Perfect upstream sync compatibility |
 | Documentation complete | ✅ | All PR specs updated with perdu branding |

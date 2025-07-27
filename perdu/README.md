@@ -1,14 +1,32 @@
-# Perdu - Persist and Durable Execution for Motia.dev
+# Motia Perdu - PostgreSQL-First Durable Execution for Multi-Instance Environments
 
-Perdu adds durable execution capabilities to the Motia.dev framework through a self-contained, fork-friendly implementation.
+**Motia Perdu** is an opinionated implementation of durable execution for Motia.dev, designed specifically for **multi-instance cloud environments** like GCP Cloud Run, AWS Lambda, and Kubernetes deployments.
 
-## Overview
+## Philosophy: PostgreSQL-Only Architecture
 
-Perdu (from "persist" and "durable") provides:
-- **Persistent State**: PostgreSQL-backed state management 
-- **Durable Workflows**: Workflow execution that survives restarts
-- **Event Coordination**: Distributed event handling with PostgreSQL LISTEN/NOTIFY
-- **Fork Compatibility**: Minimal changes to upstream motia.dev codebase
+Perdu takes an **opinionated approach** to durability by using **PostgreSQL exclusively** for all persistence needs:
+
+- **Single Database Per Stage**: No complex multi-database setup - one PostgreSQL instance handles everything
+- **Cloud-Native**: Built for auto-scaling, stateless compute environments
+- **Production-Ready**: Leverages PostgreSQL's ACID guarantees and battle-tested reliability
+- **Multi-Instance Safe**: All state coordination happens through PostgreSQL, enabling true horizontal scaling
+
+## Core Capabilities
+
+### 🏗️ **Multi-Instance State Management**
+- **Shared State**: All Motia instances share state through PostgreSQL
+- **Automatic Coordination**: No manual coordination between instances required
+- **Conflict Resolution**: PostgreSQL handles concurrent access with proper locking
+
+### ⚡ **Durable Workflow Execution**
+- **Crash Recovery**: Workflows survive instance restarts and crashes
+- **Auto-Resume**: Failed workflows automatically resume from last checkpoint
+- **Distributed Processing**: Workflows can be picked up by any available instance
+
+### 🔄 **Event-Driven Coordination**
+- **PostgreSQL LISTEN/NOTIFY**: Real-time event distribution across instances
+- **Guaranteed Delivery**: Events are persisted before notification
+- **Horizontal Scaling**: Events automatically route to available instances
 
 ## Quick Start
 
@@ -20,53 +38,67 @@ Perdu (from "persist" and "durable") provides:
 
 ### Setup Perdu Environment
 
-1. **Start Perdu Services**:
+1. **Configure Environment**:
    ```bash
    cd perdu
+   # Copy example environment file
+   cp .env.perdu.example .env.perdu.local
+   # Edit .env.perdu.local with your values if needed
+   ```
+
+2. **Start Perdu Services**:
+   ```bash
    docker compose -f docker-compose.perdu.yml up -d
    ```
 
-2. **Install Perdu Dependencies**:
+3. **Install Perdu Dependencies**:
    ```bash
    pnpm install
    ```
 
-3. **Verify Setup**:
+4. **Verify Setup**:
    ```bash
    ./scripts/test-perdu-connection.sh
    ```
 
 ### Environment Configuration
 
-Perdu uses dedicated environment variables in `.env.perdu`:
+Perdu uses a **single PostgreSQL database** per environment stage:
 - PostgreSQL on port **5433** (avoids conflicts with main motia.dev)
-- pgAdmin on port **5051** 
-- Separate databases for state, events, and execution tracking
+- **Single database**: Contains all tables (state, events, workflows)
+- **Stage management**: Database names determined by `PERDU_STAGE` environment variable
+  - Development: `motia_perdu_dev` (default)
+  - Production: `motia_perdu_prod`
+  - Custom stages: `motia_perdu_${PERDU_STAGE}`
 
 ## Project Structure
 
 ```
 perdu/
-├── README.md                    # This overview
-├── PRESERVED_UPSTREAM_INFO.md   # Info moved from upstream files
+├── README.md                      # This overview
+├── FORK_CI_STRATEGY.md            # Fork-isolated CI/CD strategy
+├── PRESERVED_UPSTREAM_INFO.md     # Info moved from upstream files
+├── UPSTREAM_INTEGRATION_REQUIREMENTS.md # Minimal upstream changes needed
 │
-├── plans/                       # All implementation plans
-│   └── 20250726-dbos/           # Original DBOS-based plans
-│       ├── 00-FOUNDATION/       # Dev environment setup
-│       ├── 01-PARALLEL-PHASE-1/ # State adapter + execution wrapper  
-│       ├── 02-PARALLEL-PHASE-2/ # Event manager
-│       ├── 03-INTEGRATION/      # Configuration integration
-│       ├── 04-DOCUMENTATION/    # Documentation and examples
-│       └── REFERENCE/           # Background materials
+├── plans/                         # All implementation plans
+│   └── 20250726-dbos/             # Original DBOS-based plans
+│       ├── 00-FOUNDATION/         # Dev environment setup
+│       ├── 01-PARALLEL-PHASE-1/   # State adapter + execution wrapper  
+│       ├── 02-PARALLEL-PHASE-2/   # Event manager
+│       ├── 03-INTEGRATION/        # Configuration integration
+│       ├── 04-DOCUMENTATION/      # Documentation and examples
+│       └── REFERENCE/             # Background materials
 │
-├── docker-compose.perdu.yml     # Self-contained Docker services
-├── .env.perdu                   # Perdu-specific environment variables
-├── package.json                 # Perdu dependencies
+├── docker-compose.perdu.yml       # Self-contained Docker services
+├── .env.perdu                     # Environment template (with placeholders)
+├── .env.perdu.example             # Environment example (with sample values)
+├── .env.perdu.local               # Local environment (actual values - not committed)
+├── package.json                   # Perdu dependencies
 │
-└── scripts/                     # Utility scripts
-    ├── setup-perdu-dev.sh       # Automated development setup
-    ├── init-perdu-postgres.sql  # Database initialization
-    └── test-perdu-connection.sh # Connection verification
+└── scripts/                       # Utility scripts
+    ├── setup-perdu-dev.sh         # Automated development setup
+    ├── init-perdu-postgres.sql    # Database initialization
+    └── test-perdu-connection.sh   # Connection verification
 ```
 
 ## Implementation Status
@@ -88,7 +120,7 @@ All implementation plans are in `plans/20250726-dbos/` with:
 
 ### 🔀 Fork-Friendly Architecture
 - **Zero upstream changes**: All perdu code in dedicated directory
-- **Non-conflicting ports**: PostgreSQL 5433, pgAdmin 5051
+- **Non-conflicting ports**: PostgreSQL 5433
 - **Separate environment**: `.env.perdu` avoids main motia.dev config
 - **Self-contained**: Independent Docker Compose stack
 
@@ -116,6 +148,66 @@ While perdu is self-contained, it integrates with motia.dev through:
 - Server configuration registration
 
 See `plans/20250726-dbos/REFERENCE/` for detailed integration architecture.
+
+## Cloud Deployment Patterns
+
+### 🚀 **GCP Cloud Run**
+```yaml
+# cloud-run.yaml
+apiVersion: serving.knative.dev/v1
+kind: Service
+spec:
+  template:
+    metadata:
+      annotations:
+        run.googleapis.com/execution-environment: gen2
+    spec:
+      containerConcurrency: 1000
+      containers:
+      - image: gcr.io/project/motia-perdu
+        env:
+        - name: PERDU_DB_HOST
+          value: "10.x.x.x"  # Cloud SQL Private IP
+        - name: PERDU_DB_NAME
+          value: "motia_perdu_prod"
+```
+
+### ⚡ **AWS Lambda + RDS**
+```yaml
+# serverless.yml
+service: motia-perdu
+provider:
+  name: aws
+  runtime: nodejs20.x
+  environment:
+    PERDU_DB_HOST: ${env:RDS_ENDPOINT}
+    PERDU_DB_NAME: motia_perdu_prod
+  vpc:
+    securityGroupIds:
+      - ${env:SECURITY_GROUP_ID}
+    subnetIds:
+      - ${env:SUBNET_ID}
+```
+
+### ☸️ **Kubernetes Deployment**
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+spec:
+  replicas: 3  # Multiple instances sharing PostgreSQL state
+  template:
+    spec:
+      containers:
+      - name: motia-perdu
+        env:
+        - name: PERDU_DB_HOST
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: host
+        - name: PERDU_DB_NAME
+          value: "motia_perdu_prod"
+```
 
 ## Next Steps
 

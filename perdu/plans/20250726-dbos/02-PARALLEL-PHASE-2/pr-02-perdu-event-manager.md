@@ -13,19 +13,21 @@ Implement perdu as an optional event backend adapter for distributed coordinatio
 
 ### Files to Create
 
-#### 1. `packages/core/src/event-manager/dbos-event-manager.ts`
+#### 1. `packages/core/src/event-manager/perdu-event-manager.ts`
 **Purpose**: New perdu-backed event manager implementing EventManager interface
 
 **Key Features**:
 - Implements complete EventManager interface with PostgreSQL backend
-- Uses perdu SDK for durable event processing
+- Uses DBOS SDK for durable execution and database operations
+- Leverages DBOS transactions for reliable event processing
 - PostgreSQL LISTEN/NOTIFY for real-time event distribution
 - Persistent event storage for replay and auditing
 - Subscription management with database persistence
 - Multi-instance coordination to prevent duplicate processing
 
 **Dependencies**:
-- `@dbos-inc/dbos-sdk` (from PR #1)
+- `@dbos-inc/dbos-sdk@^1.0.0` for durable execution and database operations
+- `pg@^8.11.0` and `@types/pg@^8.10.0` for PostgreSQL support (from PR #1)
 - Existing EventManager interface
 - PostgreSQL database connection
 
@@ -35,7 +37,7 @@ Implement perdu as an optional event backend adapter for distributed coordinatio
 **Structure**:
 ```typescript
 export interface perduEventConfig {
-  adapter: 'dbos'
+  adapter: 'perdu'
   database: {
     host: string
     port: number
@@ -115,7 +117,7 @@ CREATE INDEX idx_motia_event_processors_instance ON motia_event_processors(insta
 ## Test Plan
 
 ### Unit Tests
-**File**: `packages/core/src/event-manager/__tests__/dbos-event-manager.test.ts`
+**File**: `packages/core/src/event-manager/__tests__/perdu-event-manager.test.ts`
 
 #### Test Scenarios:
 1. **Initialization Tests**
@@ -153,7 +155,7 @@ CREATE INDEX idx_motia_event_processors_instance ON motia_event_processors(insta
 
 #### Test Scenarios:
 1. **Factory Function Tests**
-   - ✅ Should create perduEventManager when config.adapter === 'dbos'
+   - ✅ Should create perduEventManager when config.adapter === 'perdu'
    - ✅ Should fall back to InMemoryEventManager when perdu config invalid
    - ✅ Should maintain existing behavior for no configuration
 
@@ -168,7 +170,7 @@ CREATE INDEX idx_motia_event_processors_instance ON motia_event_processors(insta
    - ✅ Should validate database connection on startup
 
 ### End-to-End Tests
-**File**: `packages/core/src/__tests__/dbos-events-e2e.test.ts`
+**File**: `packages/core/src/__tests__/perdu-events-e2e.test.ts`
 
 #### Test Scenarios:
 1. **Multi-Instance Event Distribution**
@@ -188,7 +190,7 @@ CREATE INDEX idx_motia_event_processors_instance ON motia_event_processors(insta
    - ✅ Should maintain event consistency during failures
 
 ### Performance Tests
-**File**: `packages/core/src/event-manager/__tests__/dbos-events-performance.test.ts`
+**File**: `packages/core/src/event-manager/__tests__/perdu-events-performance.test.ts`
 
 #### Test Scenarios:
 1. **Throughput Tests**
@@ -212,7 +214,7 @@ CREATE INDEX idx_motia_event_processors_instance ON motia_event_processors(insta
 ### Production (perdu Events)
 ```yaml
 events:
-  adapter: dbos
+  adapter: perdu
   database:
     host: postgres.example.com
     port: 5432
@@ -228,11 +230,11 @@ events:
 ### Hybrid Configuration
 ```yaml
 events:
-  adapter: dbos
+  adapter: perdu
   database:
     host: localhost
     port: 5432
-    database: motia_dbos
+    database: motia_postgres
     username: motia
     password: "${MOTIA_DB_PASSWORD}"
   # Use default options
@@ -263,7 +265,8 @@ events:
 - Instance coordination and health monitoring
 
 ## Dependencies
-- `@dbos-inc/dbos-sdk@^1.0.0` (from PR #1)
+- `@dbos-inc/dbos-sdk@^1.0.0`
+- `pg@^8.11.0` and `@types/pg@^8.10.0` (from PR #1)
 - PostgreSQL database with LISTEN/NOTIFY support
 - Existing EventManager interface
 

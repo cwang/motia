@@ -1,5 +1,7 @@
 # Fork-Isolated CI Strategy
 
+> **TL;DR**: Perdu CI workflows are completely isolated from upstream motia.dev workflows to enable conflict-free syncing. Perdu workflows only trigger on `perdu/**` changes and use non-conflicting ports/services.
+
 ## Overview
 
 This fork maintains complete CI/CD isolation from upstream motia.dev to enable frequent syncing without conflicts.

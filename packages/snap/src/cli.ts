@@ -4,7 +4,7 @@ import { program } from 'commander'
 import './cloud'
 import { version } from './version'
 
-const defaultPort = 3000
+const defaultPort = parseInt(process.env.MOTIA_PORT || '3000', 10)
 const defaultHost = '0.0.0.0'
 
 require('dotenv/config')
