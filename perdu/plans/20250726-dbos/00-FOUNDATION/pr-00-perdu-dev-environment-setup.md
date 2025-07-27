@@ -76,7 +76,7 @@ perdu/
 PERDU_DB_HOST=localhost
 PERDU_DB_PORT=5433
 PERDU_DB_USER=motia
-PERDU_DB_PASSWORD=motia_dev
+PERDU_DB_PASSWORD=${PERDU_DB_PASSWORD:-your_password_here}
 PERDU_DB_STATE=motia_state_dev
 PERDU_DB_EVENTS=motia_events_dev
 PERDU_DB_EXECUTION=motia_execution_dev
@@ -386,7 +386,7 @@ services:
 PERDU_DB_HOST=localhost
 PERDU_DB_PORT=5433
 PERDU_DB_USER=motia
-PERDU_DB_PASSWORD=motia_dev
+PERDU_DB_PASSWORD=${PERDU_DB_PASSWORD:-your_password_here}
 
 # Standard motia.dev (unchanged)
 REDIS_URL=redis://:pingpong@localhost:6379

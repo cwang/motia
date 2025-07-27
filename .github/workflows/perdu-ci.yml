@@ -82,8 +82,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
-      - name: Setup
-        uses: ./.github/actions/setup
+      - name: Setup perdu environment
+        uses: ./.github/actions/setup-perdu
         
       - name: Initialize perdu databases
         run: |
@@ -131,15 +131,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
-      - name: Setup
-        uses: ./.github/actions/setup
+      - name: Setup perdu environment
+        uses: ./.github/actions/setup-perdu
         
       - name: Verify fork isolation
         run: |
           echo "🔍 Verifying perdu changes are completely isolated from upstream..."
           
           # Check that changes are only in perdu directory or perdu-specific CI files
-          changed_files=$(git diff --name-only HEAD^ HEAD)
+          # Use different approaches for PR vs push events
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            changed_files=$(git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.sha }})
+          else
+            changed_files=$(git diff --name-only HEAD~1 HEAD)
+          fi
           echo "Changed files: $changed_files"
           
           # Allow only perdu/* and perdu-specific CI files
