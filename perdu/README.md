@@ -209,6 +209,65 @@ spec:
           value: "motia_perdu_prod"
 ```
 
+## CI/CD and Testing
+
+### 🧪 **Local CI/CD Testing**
+
+Perdu includes comprehensive local testing infrastructure that mirrors GitHub Actions exactly:
+
+#### Quick CI/CD Fix Verification
+```bash
+cd perdu
+./scripts/test-ci-fixes-locally.sh
+```
+- Tests PostgreSQL client installation 
+- Verifies database connectivity
+- Validates script permissions
+- **Fast**: ~30 seconds
+
+#### Full CI/CD Test Suite  
+```bash
+cd perdu
+./scripts/test-ci-locally.sh
+```
+- Complete environment mirroring
+- Full dependency installation testing
+- Fork isolation verification
+- **Comprehensive**: Mirrors entire GitHub Actions pipeline
+
+### 🛡️ **Fork-Isolated CI/CD**
+
+All CI/CD pipelines are completely isolated from upstream motia.dev:
+
+- **Trigger Isolation**: Only runs on `perdu/**` file changes
+- **Service Isolation**: Uses unique PostgreSQL ports (5433) and database names
+- **Workflow Isolation**: Separate `.github/workflows/perdu-*.yml` files
+- **Action Isolation**: Custom `.github/actions/setup-perdu/` action
+
+This ensures:
+- ✅ **Safe upstream syncing** without CI/CD conflicts
+- ✅ **Independent development** with dedicated testing
+- ✅ **Local verification** before pushing to GitHub
+
+### 🔧 **Development Tools**
+
+#### Multi-Instance Testing
+```bash
+# Start multiple instances for testing
+./scripts/start-motia-dev.sh 3000  # Instance 1
+./scripts/start-motia-dev.sh 3001  # Instance 2  
+./scripts/start-motia-dev.sh 3002  # Instance 3
+```
+
+#### Database Management
+```bash
+# Setup development environment
+./scripts/setup-perdu-dev.sh
+
+# Test database connections
+./scripts/test-perdu-connection.sh
+```
+
 ## Next Steps
 
 1. **Review Implementation Plans**: All specs in `plans/20250726-dbos/`
