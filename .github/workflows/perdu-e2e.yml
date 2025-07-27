@@ -1,14 +1,19 @@
-name: Perdu E2E Tests
+# FORK-ISOLATED WORKFLOW  
+# This workflow is specific to our fork and will NOT interfere with upstream motia.dev CI
+# It only triggers on perdu-specific changes and maintains complete isolation
+# Safe for frequent upstream syncing without conflicts
+
+name: Perdu E2E Tests (Fork-Isolated)
 
 on:
   pull_request:
     branches: [main]
     paths:
       - 'perdu/**'
-      - 'packages/**'
-      - 'playground/**'
-      - '!packages/docs/**'
-      - '.github/workflows/perdu-e2e.yml'
+      - '.github/workflows/perdu-*.yml'
+      - '.github/actions/setup-perdu/**'
+    # NOTE: Only trigger on perdu changes to avoid interfering with upstream
+    # Upstream motia.dev changes will be tested by their own workflows
   workflow_dispatch:
     inputs:
       branch:
@@ -16,6 +21,11 @@ on:
         required: true
         default: 'main'
         type: string
+      debug:
+        description: 'Enable debug output'
+        required: false
+        default: 'false'
+        type: boolean
 
 permissions:
   contents: read
@@ -79,7 +89,7 @@ jobs:
           ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.branch || github.ref }}
 
       - name: Setup perdu environment
-        uses: ./perdu/.github/actions/setup-perdu
+        uses: ./.github/actions/setup-perdu
 
       - name: Initialize perdu databases
         run: |

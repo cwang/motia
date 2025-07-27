@@ -282,53 +282,62 @@ docker-compose -f docker-compose.perdu.yml ps
 
 ## GitHub Actions & CI/CD Integration
 
-### Fork-Adapted CI/CD Pipeline
+### ⚠️ CRITICAL: Fork-Isolated CI/CD Strategy
 
-Since this is a fork of motia.dev, we need to ensure our GitHub Actions are properly adapted for our repository while maintaining compatibility with upstream changes.
+Since this is a fork that needs **frequent upstream syncing**, our CI/CD must be **completely isolated** from upstream workflows to prevent merge conflicts during updates.
+
+### Core Isolation Principles
+
+1. **Complete Path Separation**: All perdu workflows in root `.github/` directory (NOT `perdu/.github/`)
+2. **Trigger Isolation**: Workflows only trigger on perdu-specific file changes
+3. **Naming Isolation**: All workflows have "(Fork-Isolated)" suffix to prevent conflicts
+4. **Service Isolation**: Non-conflicting ports and service names
+5. **Zero Upstream Interference**: Never modify or conflict with upstream CI/CD files
 
 #### New Files to Create
 
-##### 1. `perdu/.github/workflows/perdu-ci.yml`
-**Purpose**: Main CI pipeline for perdu integration with PostgreSQL support
+##### 1. `.github/workflows/perdu-ci.yml` (Root GitHub Directory)
+**Purpose**: Fork-isolated CI pipeline with PostgreSQL support
 
-**Key Features**:
-- PostgreSQL service on port 5433 (non-conflicting)
-- Redis service for existing motia.dev compatibility
-- Database initialization and validation
-- Upstream compatibility verification
-- Documentation completeness checks
+**Critical Features**:
+- **Isolated Triggers**: Only runs on `perdu/**` changes
+- **Fork Isolation Verification**: Validates no upstream files modified
+- **Upstream Compatibility**: Tests that existing motia.dev functionality works
+- **Clear Naming**: "(Fork-Isolated)" suffix prevents upstream conflicts
+
+**Trigger Configuration**:
+```yaml
+on:
+  pull_request:
+    paths:
+      - 'perdu/**'
+      - '.github/workflows/perdu-*.yml'
+      - '.github/actions/setup-perdu/**'
+```
 
 **Services Configuration**:
 ```yaml
 services:
   perdu-postgres:
     image: postgres:15
-    env:
-      POSTGRES_USER: motia
-      POSTGRES_PASSWORD: motia_dev
-      POSTGRES_DB: motia_dev
     ports:
       - 5433:5432  # Non-conflicting port
-      
   redis:
     image: redis/redis-stack:latest
-    env:
-      REDIS_ARGS: --requirepass pingpong
     ports:
-      - 6379:6379  # Standard Redis port
+      - 6379:6379  # Standard Redis (unchanged)
 ```
 
-##### 2. `perdu/.github/actions/setup-perdu/action.yml`
-**Purpose**: Reusable action for setting up perdu development environment
+##### 2. `.github/actions/setup-perdu/action.yml` (Root GitHub Directory)  
+**Purpose**: Fork-isolated setup action for perdu environment
 
 **Key Features**:
-- PostgreSQL client installation
-- Perdu dependency management
-- Script permissions setup
-- Environment validation
-- Docker Compose configuration verification
+- **Upstream Inheritance**: Extends existing setup patterns
+- **PostgreSQL Client**: Installs client tools for database operations
+- **Isolation Validation**: Verifies perdu setup doesn't conflict
+- **Script Management**: Handles perdu-specific script permissions
 
-##### 3. `perdu/.github/workflows/perdu-e2e.yml`
+##### 3. `.github/workflows/perdu-e2e.yml` (Root GitHub Directory)
 **Purpose**: End-to-end testing with perdu integration enabled
 
 **Key Features**:
@@ -447,9 +456,37 @@ on:
 - **Solution**: Parallel service startup and efficient caching
 - **Validation**: Timeout limits and performance monitoring
 
-#### Fork Sync Issues
-- **Solution**: Keep perdu CI files in perdu directory
-- **Validation**: No modifications to upstream GitHub Actions
+#### Fork Sync Issues (CRITICAL)
+- **Solution**: Complete isolation with fork-specific naming and triggers
+- **Validation**: Automated verification that only perdu files are modified
+- **Safety**: Workflows explicitly check for upstream file modifications
+
+#### Upstream Interference Prevention
+- **Solution**: Strict path-based triggers and naming conventions
+- **Validation**: Fork isolation verification in every CI run
+- **Safety**: Clear documentation and header comments in all workflows
+
+### 🔄 Upstream Sync Compatibility
+
+#### Safe Operations
+✅ **Merge upstream main**: Zero conflicts with perdu workflows  
+✅ **Pull upstream workflow changes**: Perdu workflows are completely separate  
+✅ **Rebase on upstream**: Perdu files isolated in dedicated paths  
+✅ **Upstream CI updates**: No interference with fork-isolated workflows  
+
+#### Automated Safety Checks
+```bash
+# Every perdu CI run verifies:
+# 1. Only perdu-specific files changed
+# 2. No upstream workflows modified  
+# 3. No critical upstream files touched
+# 4. Service isolation maintained
+```
+
+#### Documentation Strategy
+- **`.github/FORK_CI_STRATEGY.md`**: Complete isolation documentation
+- **Workflow headers**: Clear "FORK-ISOLATED" comments
+- **Trigger documentation**: Explicit path restrictions
 
 ## Next Steps
 1. Complete PR #0 setup
