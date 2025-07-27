@@ -1,0 +1,191 @@
+name: Perdu CI
+
+permissions:
+  contents: read
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'perdu/**'
+      - '.github/workflows/perdu-ci.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'perdu/**'
+  workflow_dispatch:
+
+jobs:
+  perdu-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    
+    services:
+      # PostgreSQL for perdu integration tests
+      perdu-postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: motia
+          POSTGRES_PASSWORD: motia_dev
+          POSTGRES_DB: motia_dev
+          POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
+        options: >-
+          --health-cmd "pg_isready -U motia -d motia_dev"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5433:5432
+          
+      # Redis for existing motia.dev tests (unchanged)
+      redis:
+        image: redis/redis-stack:latest
+        env:
+          REDIS_ARGS: --requirepass pingpong
+        options: >-
+          --health-cmd "redis-cli --raw incr ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    env:
+      CI: true
+      NODE_ENV: test
+      # Perdu environment variables
+      PERDU_DB_HOST: localhost
+      PERDU_DB_PORT: 5433
+      PERDU_DB_USER: motia
+      PERDU_DB_PASSWORD: motia_dev
+      PERDU_DB_STATE: motia_state_dev
+      PERDU_DB_EVENTS: motia_events_dev
+      PERDU_DB_EXECUTION: motia_execution_dev
+      PERDU_DB_TEST: motia_test
+      
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup
+        uses: ./.github/actions/setup
+        
+      - name: Initialize perdu databases
+        run: |
+          # Wait for PostgreSQL to be ready
+          until pg_isready -h localhost -p 5433 -U motia -d motia_dev; do
+            echo "Waiting for PostgreSQL to be ready..."
+            sleep 2
+          done
+          
+          # Run perdu database initialization
+          PGPASSWORD=motia_dev psql -h localhost -p 5433 -U motia -d motia_dev -f perdu/scripts/init-perdu-postgres.sql
+          
+      - name: Verify perdu database setup
+        run: |
+          cd perdu
+          chmod +x scripts/test-perdu-connection.sh
+          PERDU_DB_PORT=5433 ./scripts/test-perdu-connection.sh
+          
+      - name: Install perdu dependencies
+        run: |
+          cd perdu
+          npm install
+          
+      - name: Run perdu unit tests
+        run: |
+          # This will be implemented in later PRs
+          echo "✅ Perdu unit tests will be added in implementation PRs"
+          
+      - name: Run perdu integration tests
+        run: |
+          # This will be implemented in later PRs
+          echo "✅ Perdu integration tests will be added in implementation PRs"
+          
+      - name: Verify perdu Docker Compose setup
+        run: |
+          cd perdu
+          # Test that perdu docker-compose doesn't conflict with CI services
+          docker compose -f docker-compose.perdu.yml config
+          echo "✅ Perdu Docker Compose configuration is valid"
+
+  perdu-compatibility:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup
+        uses: ./.github/actions/setup
+        
+      - name: Verify upstream compatibility
+        run: |
+          echo "🔍 Verifying perdu doesn't break existing motia.dev functionality..."
+          
+          # Ensure no upstream files were modified
+          if git diff --name-only HEAD main | grep -E '^(compose\.yml|playground/\.env\.example|MONOREPO-README\.md)$'; then
+            echo "❌ ERROR: Upstream files were modified by perdu changes"
+            echo "Perdu must remain self-contained to maintain fork compatibility"
+            exit 1
+          fi
+          
+          echo "✅ No upstream files modified - fork compatibility maintained"
+          
+      - name: Run existing motia.dev tests
+        run: |
+          # Setup playground python environment
+          pnpm -r --filter @motiadev/core exec pnpm python-setup
+          cd playground
+          pnpm python-setup
+          
+          # Run existing tests to ensure no regressions
+          PATH=python_modules/bin:$PATH pnpm -r run test
+          
+          echo "✅ All existing motia.dev tests pass with perdu changes"
+
+  perdu-docs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Validate perdu documentation
+        run: |
+          echo "📚 Validating perdu documentation completeness..."
+          
+          # Check that all required documentation exists
+          required_files=(
+            "perdu/README.md"
+            "perdu/UPSTREAM_INTEGRATION_REQUIREMENTS.md"
+            "perdu/PRESERVED_UPSTREAM_INFO.md"
+            "perdu/plans/20250726-dbos/00-FOUNDATION/pr-00-perdu-dev-environment-setup.md"
+          )
+          
+          for file in "${required_files[@]}"; do
+            if [[ ! -f "$file" ]]; then
+              echo "❌ Missing required documentation: $file"
+              exit 1
+            fi
+            echo "✅ Found: $file"
+          done
+          
+          # Validate Docker Compose files
+          cd perdu
+          docker compose -f docker-compose.perdu.yml config > /dev/null
+          echo "✅ Perdu Docker Compose configuration is valid"
+          
+          # Check that scripts are executable
+          if [[ ! -x "scripts/setup-perdu-dev.sh" ]]; then
+            echo "❌ setup-perdu-dev.sh is not executable"
+            exit 1
+          fi
+          
+          if [[ ! -x "scripts/test-perdu-connection.sh" ]]; then
+            echo "❌ test-perdu-connection.sh is not executable"
+            exit 1
+          fi
+          
+          echo "✅ All perdu documentation and scripts are properly configured"

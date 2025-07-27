@@ -280,6 +280,177 @@ docker-compose -f docker-compose.perdu.yml ps
 - **Solution**: Zero modifications to existing files
 - **Validation**: All perdu files contained within `perdu/` directory
 
+## GitHub Actions & CI/CD Integration
+
+### Fork-Adapted CI/CD Pipeline
+
+Since this is a fork of motia.dev, we need to ensure our GitHub Actions are properly adapted for our repository while maintaining compatibility with upstream changes.
+
+#### New Files to Create
+
+##### 1. `perdu/.github/workflows/perdu-ci.yml`
+**Purpose**: Main CI pipeline for perdu integration with PostgreSQL support
+
+**Key Features**:
+- PostgreSQL service on port 5433 (non-conflicting)
+- Redis service for existing motia.dev compatibility
+- Database initialization and validation
+- Upstream compatibility verification
+- Documentation completeness checks
+
+**Services Configuration**:
+```yaml
+services:
+  perdu-postgres:
+    image: postgres:15
+    env:
+      POSTGRES_USER: motia
+      POSTGRES_PASSWORD: motia_dev
+      POSTGRES_DB: motia_dev
+    ports:
+      - 5433:5432  # Non-conflicting port
+      
+  redis:
+    image: redis/redis-stack:latest
+    env:
+      REDIS_ARGS: --requirepass pingpong
+    ports:
+      - 6379:6379  # Standard Redis port
+```
+
+##### 2. `perdu/.github/actions/setup-perdu/action.yml`
+**Purpose**: Reusable action for setting up perdu development environment
+
+**Key Features**:
+- PostgreSQL client installation
+- Perdu dependency management
+- Script permissions setup
+- Environment validation
+- Docker Compose configuration verification
+
+##### 3. `perdu/.github/workflows/perdu-e2e.yml`
+**Purpose**: End-to-end testing with perdu integration enabled
+
+**Key Features**:
+- Full playground startup with perdu features
+- Database connectivity testing
+- Environment isolation verification
+- Integration test execution
+- Artifact collection for debugging
+
+### CI/CD Testing Strategy
+
+#### Automated Quality Gates
+
+1. **Perdu Integration Tests**
+   ```bash
+   # Database connectivity
+   ./scripts/test-perdu-connection.sh
+   
+   # Schema validation
+   psql -c "\dt" # Verify tables exist
+   
+   # Service isolation
+   # Verify perdu uses port 5433, not 5432
+   ```
+
+2. **Upstream Compatibility Tests**
+   ```bash
+   # Ensure no upstream files modified
+   git diff --name-only HEAD main | grep -v "^perdu/"
+   
+   # Run existing motia.dev tests
+   pnpm -r run test
+   ```
+
+3. **Documentation Validation**
+   ```bash
+   # Check required documentation exists
+   # Validate Docker Compose configuration
+   # Verify script executability
+   ```
+
+#### Environment Variables for CI
+
+```env
+# Perdu-specific (non-conflicting)
+PERDU_DB_HOST=localhost
+PERDU_DB_PORT=5433
+PERDU_DB_USER=motia
+PERDU_DB_PASSWORD=motia_dev
+
+# Standard motia.dev (unchanged)
+REDIS_URL=redis://:pingpong@localhost:6379
+MOTIA_ANALYTICS_DISABLED=true
+```
+
+### Integration with Existing GitHub Actions
+
+#### Inheritance Strategy
+
+1. **Reuse Setup Action**: Extend existing `.github/actions/setup/action.yml` patterns
+2. **PostgreSQL Addition**: Add PostgreSQL services to complement existing Redis
+3. **Non-Conflicting Ports**: Ensure perdu services don't conflict with upstream
+4. **Isolated Testing**: perdu tests run independently of main motia.dev tests
+
+#### Workflow Triggers
+
+```yaml
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'perdu/**'
+      - '.github/workflows/perdu-*.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'perdu/**'
+```
+
+### Fork Compatibility Benefits
+
+#### CI/CD Level
+1. **Independent Pipelines**: perdu CI doesn't interfere with main motia.dev CI
+2. **Service Isolation**: Different ports prevent conflicts
+3. **Incremental Testing**: Can test perdu features without affecting existing tests
+4. **Easy Rollback**: Remove perdu workflows without impacting main CI
+
+#### Development Workflow
+1. **Parallel Development**: Teams can work on perdu without breaking main CI
+2. **Progressive Integration**: Add CI checks as features are implemented
+3. **Quality Gates**: Automated verification of fork compatibility
+4. **Documentation Enforcement**: CI ensures documentation stays current
+
+### Success Criteria - CI/CD
+
+- [ ] **perdu CI pipeline** running successfully with PostgreSQL services
+- [ ] **Upstream compatibility** verified in every PR
+- [ ] **Documentation validation** automated
+- [ ] **Database initialization** working in CI environment
+- [ ] **Service isolation** confirmed (ports, networks, volumes)
+- [ ] **E2E testing** pipeline ready for implementation phases
+- [ ] **Artifact collection** for debugging CI failures
+- [ ] **Fork compatibility** maintained (no upstream CI modifications)
+
+### Risk Mitigation - CI/CD
+
+#### PostgreSQL Service Issues
+- **Solution**: Health checks and retry logic for database readiness
+- **Validation**: Connection testing before running dependent steps
+
+#### Port Conflicts
+- **Solution**: Use non-standard ports (5433 for PostgreSQL)
+- **Validation**: Explicit port testing in CI
+
+#### CI Performance Impact
+- **Solution**: Parallel service startup and efficient caching
+- **Validation**: Timeout limits and performance monitoring
+
+#### Fork Sync Issues
+- **Solution**: Keep perdu CI files in perdu directory
+- **Validation**: No modifications to upstream GitHub Actions
+
 ## Next Steps
 1. Complete PR #0 setup
 2. Verify all services running correctly
@@ -287,9 +458,10 @@ docker-compose -f docker-compose.perdu.yml ps
 4. Test concurrent development workflow
 
 ## Estimated Effort
-**Setup**: 2-3 hours
-**Testing**: 1 hour  
+**Environment Setup**: 2-3 hours
+**GitHub Actions CI/CD**: 3-4 hours
+**Testing & Validation**: 2 hours  
 **Documentation**: 1 hour
-**Total**: Half day
+**Total**: 1-1.5 days
 
 This self-contained approach ensures perdu development can proceed without any impact on the main Motia codebase, making it perfect for fork management and concurrent development.

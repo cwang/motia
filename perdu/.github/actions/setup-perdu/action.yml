@@ -1,0 +1,89 @@
+name: 'Setup Perdu Environment'
+description: 'Set up development environment for perdu integration'
+
+inputs:
+  postgres-version:
+    description: 'PostgreSQL version to use'
+    required: false
+    default: '15'
+  node-version:
+    description: 'Node.js version to use'
+    required: false
+    default: '20.11.1'
+  python-version:
+    description: 'Python version to use'
+    required: false
+    default: '3.13'
+
+runs:
+  using: 'composite'
+  steps:
+    # Base setup (inherited from main motia.dev setup)
+    - uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python-version }}
+        
+    - uses: pnpm/action-setup@v4
+    
+    - uses: actions/setup-node@v3
+      with:
+        node-version: ${{ inputs.node-version }}
+        cache: 'pnpm'
+
+    # Install PostgreSQL client tools for database operations
+    - name: Install PostgreSQL client
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y postgresql-client-${{ inputs.postgres-version }}
+        
+    # Install main motia.dev dependencies
+    - name: Install motia.dev dependencies
+      shell: bash
+      run: |
+        pnpm --filter=!playground install
+        pnpm build
+        pnpm install  # Re-install to set bin paths after build
+        
+    # Install perdu-specific dependencies
+    - name: Install perdu dependencies
+      shell: bash
+      run: |
+        cd perdu
+        npm install
+        
+    # Make perdu scripts executable
+    - name: Setup perdu scripts
+      shell: bash
+      run: |
+        cd perdu
+        chmod +x scripts/*.sh
+        
+    # Validate perdu environment setup
+    - name: Validate perdu setup
+      shell: bash
+      run: |
+        echo "🔍 Validating perdu environment setup..."
+        
+        # Check that required tools are available
+        command -v psql >/dev/null 2>&1 || { echo "❌ psql not found"; exit 1; }
+        command -v node >/dev/null 2>&1 || { echo "❌ node not found"; exit 1; }
+        command -v pnpm >/dev/null 2>&1 || { echo "❌ pnpm not found"; exit 1; }
+        command -v python3 >/dev/null 2>&1 || { echo "❌ python3 not found"; exit 1; }
+        
+        echo "✅ All required tools are available"
+        
+        # Verify perdu dependencies
+        cd perdu
+        if [[ -f package.json ]]; then
+          npm list --depth=0 >/dev/null 2>&1 || { echo "❌ perdu dependencies not properly installed"; exit 1; }
+          echo "✅ Perdu dependencies installed successfully"
+        fi
+        
+        # Check Docker Compose configuration
+        if [[ -f docker-compose.perdu.yml ]]; then
+          docker compose -f docker-compose.perdu.yml config >/dev/null 2>&1 || { echo "❌ Invalid perdu Docker Compose configuration"; exit 1; }
+          echo "✅ Perdu Docker Compose configuration is valid"
+        fi
+        
+        echo "🎉 Perdu environment setup completed successfully"
