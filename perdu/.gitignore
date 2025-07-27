@@ -5,6 +5,9 @@
 .env.perdu.local
 .env.*.local
 
+# Allow example files to be committed
+!.env.*.example
+
 # Database data and logs
 data/
 logs/
