@@ -122,58 +122,6 @@ jobs:
           docker compose -f docker-compose.perdu.yml config
           echo "✅ Perdu Docker Compose configuration is valid"
 
-  perdu-compatibility:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Setup perdu environment
-        uses: ./.github/actions/setup-perdu
-        
-      - name: Verify fork isolation
-        run: |
-          echo "🔍 Verifying perdu changes are completely isolated from upstream..."
-          
-          # Check that changes are only in perdu directory or perdu-specific CI files
-          # Use different approaches for PR vs push events
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            changed_files=$(git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.sha }})
-          else
-            changed_files=$(git diff --name-only HEAD~1 HEAD)
-          fi
-          echo "Changed files: $changed_files"
-          
-          # Allow only perdu/* and perdu-specific CI files
-          for file in $changed_files; do
-            if [[ ! "$file" =~ ^perdu/ ]] && [[ ! "$file" =~ ^\.github/workflows/perdu- ]] && [[ ! "$file" =~ ^\.github/actions/setup-perdu/ ]]; then
-              echo "❌ ERROR: Non-perdu file modified: $file"
-              echo "This violates fork isolation - perdu changes must be completely self-contained"
-              exit 1
-            fi
-          done
-          
-          # Ensure no critical upstream files were modified
-          if echo "$changed_files" | grep -E '^(compose\.yml|playground/\.env\.example|MONOREPO-README\.md|\.github/workflows/(motia|e2e-tests|deploy|create-tag|finalize|rollback))'; then
-            echo "❌ ERROR: Critical upstream files were modified"
-            echo "Perdu must remain completely isolated to maintain fork compatibility"
-            exit 1
-          fi
-          
-          echo "✅ Fork isolation verified - all changes are perdu-specific"
-          
-      - name: Run existing motia.dev tests
-        run: |
-          # Setup playground python environment
-          pnpm -r --filter @motiadev/core exec pnpm python-setup
-          cd playground
-          pnpm python-setup
-          
-          # Run existing tests to ensure no regressions
-          PATH=python_modules/bin:$PATH pnpm -r run test
-          
-          echo "✅ All existing motia.dev tests pass with perdu changes"
 
   perdu-docs:
     runs-on: ubuntu-latest

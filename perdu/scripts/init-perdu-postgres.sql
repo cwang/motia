@@ -106,6 +106,48 @@ CREATE INDEX IF NOT EXISTS idx_motia_workflow_steps_workflow_id ON motia_workflo
 CREATE INDEX IF NOT EXISTS idx_motia_workflow_steps_status ON motia_workflow_steps(status);
 CREATE INDEX IF NOT EXISTS idx_motia_execution_locks_expires_at ON motia_execution_locks(expires_at);
 
+-- ===== TRACE STORAGE TABLES (same database) =====
+
+-- Traces table for individual trace persistence
+CREATE TABLE IF NOT EXISTS motia_traces (
+    group_id VARCHAR(255) NOT NULL,
+    trace_id VARCHAR(255) NOT NULL,
+    trace_data JSONB NOT NULL,
+    status VARCHAR(50) NOT NULL DEFAULT 'running',
+    entry_point JSONB NOT NULL,
+    start_time BIGINT NOT NULL,
+    end_time BIGINT NULL,
+    error_data JSONB NULL,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW(),
+    PRIMARY KEY (group_id, trace_id)
+);
+
+-- Trace groups table for trace group persistence  
+CREATE TABLE IF NOT EXISTS motia_trace_groups (
+    id VARCHAR(255) PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    correlation_id VARCHAR(255) NULL,
+    status VARCHAR(50) NOT NULL DEFAULT 'running',
+    start_time BIGINT NOT NULL,
+    end_time BIGINT NULL,
+    last_activity BIGINT NOT NULL,
+    metadata JSONB NOT NULL,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Performance and query optimization indexes for traces
+CREATE INDEX IF NOT EXISTS idx_motia_traces_group_id ON motia_traces(group_id);
+CREATE INDEX IF NOT EXISTS idx_motia_traces_status ON motia_traces(status);
+CREATE INDEX IF NOT EXISTS idx_motia_traces_start_time ON motia_traces(start_time);
+CREATE INDEX IF NOT EXISTS idx_motia_traces_created_at ON motia_traces(created_at);
+
+CREATE INDEX IF NOT EXISTS idx_motia_trace_groups_status ON motia_trace_groups(status);
+CREATE INDEX IF NOT EXISTS idx_motia_trace_groups_correlation_id ON motia_trace_groups(correlation_id);
+CREATE INDEX IF NOT EXISTS idx_motia_trace_groups_start_time ON motia_trace_groups(start_time);
+CREATE INDEX IF NOT EXISTS idx_motia_trace_groups_created_at ON motia_trace_groups(created_at);
+
 -- Grant permissions to motia user for single database
 GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO motia;
 GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO motia;
