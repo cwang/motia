@@ -41,11 +41,11 @@ jobs:
         image: postgres:15
         env:
           POSTGRES_USER: motia
-          POSTGRES_PASSWORD: motia_dev
-          POSTGRES_DB: motia_dev
+          POSTGRES_PASSWORD: motia_perdu
+          POSTGRES_DB: motia_perdu_dev
           POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
         options: >-
-          --health-cmd "pg_isready -U motia -d motia_dev"
+          --health-cmd "pg_isready -U motia -d motia_perdu_dev"
           --health-interval 5s
           --health-timeout 5s
           --health-retries 5
@@ -76,11 +76,9 @@ jobs:
       PERDU_DB_HOST: localhost
       PERDU_DB_PORT: 5433
       PERDU_DB_USER: motia
-      PERDU_DB_PASSWORD: motia_dev
-      PERDU_DB_STATE: motia_state_dev
-      PERDU_DB_EVENTS: motia_events_dev
-      PERDU_DB_EXECUTION: motia_execution_dev
-      PERDU_DB_TEST: motia_test
+      PERDU_DB_PASSWORD: motia_perdu
+      PERDU_DB_NAME: motia_perdu_dev
+      PERDU_DB_TEST: motia_perdu_test
       MOTIA_DURABILITY_ENABLED: true  # Enable perdu features for E2E tests
       
     steps:
