@@ -1,0 +1,90 @@
+# Docker Compose for Local CI/CD Testing
+# Mirrors GitHub Actions environment exactly for local verification
+# Use this to test CI/CD pipeline changes before pushing to GitHub
+
+version: '3.8'
+
+services:
+  # PostgreSQL service - mirrors GitHub Actions perdu-postgres service
+  perdu-postgres:
+    image: postgres:15
+    container_name: perdu-ci-postgres
+    environment:
+      POSTGRES_USER: motia
+      POSTGRES_PASSWORD: motia_perdu
+      POSTGRES_DB: motia_perdu_dev
+      POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U motia -d motia_perdu_dev"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "5433:5432"
+    networks:
+      - perdu-ci-network
+
+  # Redis service - mirrors GitHub Actions redis service  
+  redis:
+    image: redis/redis-stack:latest
+    container_name: perdu-ci-redis
+    environment:
+      REDIS_ARGS: --requirepass pingpong
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "6379:6379"
+    networks:
+      - perdu-ci-network
+
+  # CI Test Runner - mirrors GitHub Actions ubuntu-latest environment
+  ci-test-runner:
+    build:
+      context: ..  # Build from parent directory to access packages/, playground/, etc.
+      dockerfile: perdu/ci-test.Dockerfile
+    container_name: perdu-ci-runner
+    depends_on:
+      perdu-postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      # Mirror exact GitHub Actions environment variables
+      CI: true
+      NODE_ENV: test
+      
+      # Perdu environment variables (exact match with GitHub Actions)
+      PERDU_DB_HOST: perdu-postgres
+      PERDU_DB_PORT: 5432  # Internal container port
+      PERDU_DB_USER: motia
+      PERDU_DB_PASSWORD: motia_perdu
+      PERDU_DB_NAME: motia_perdu_dev
+      PERDU_DB_TEST: motia_perdu_test
+      
+      # Redis environment (mirrors GitHub Actions)
+      REDIS_URL: "redis://:pingpong@redis:6379"
+      MOTIA_ANALYTICS_DISABLED: true
+      
+    volumes:
+      # Mount the entire repository for testing
+      - ..:/workspace:cached
+      # Cache node_modules for faster rebuilds
+      - ci-node-modules:/workspace/node_modules
+      - ci-perdu-node-modules:/workspace/perdu/node_modules
+    working_dir: /workspace
+    command: ["./perdu/scripts/run-ci-tests-locally.sh"]
+    networks:
+      - perdu-ci-network
+
+volumes:
+  ci-node-modules:
+    driver: local
+  ci-perdu-node-modules:
+    driver: local
+
+networks:
+  perdu-ci-network:
+    driver: bridge
