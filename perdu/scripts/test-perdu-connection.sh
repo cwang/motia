@@ -16,7 +16,7 @@ if [ "$CI" = "true" ]; then
     DB_HOST=${PERDU_DB_HOST:-localhost}
     DB_PORT=${PERDU_DB_PORT:-5433}
     DB_USER=${PERDU_DB_USER:-motia}
-    DB_NAME=${PERDU_DB_NAME:-motia_perdu_dev}
+    DB_NAME=${PERDU_DB_NAME:-motia_perdu}
     DB_PASSWORD=${PERDU_DB_PASSWORD:-motia_perdu}
     
     # Connection command for CI (direct psql)
@@ -36,7 +36,7 @@ else
     fi
     
     # Use environment variables from .env file
-    DB_NAME=${PERDU_DB_NAME:-motia_perdu_dev}
+    DB_NAME=${PERDU_DB_NAME:-motia_perdu}
     
     # Check if Docker container is running
     if docker ps --filter "name=motia-perdu-postgres" --filter "status=running" | grep -q motia-perdu-postgres; then

@@ -27,7 +27,7 @@ export PERDU_DB_HOST=localhost
 export PERDU_DB_PORT=5433
 export PERDU_DB_USER=motia
 export PERDU_DB_PASSWORD=motia_perdu
-export PERDU_DB_NAME=motia_perdu_dev
+export PERDU_DB_NAME=motia_perdu
 export PERDU_DB_TEST=motia_perdu_test
 
 print_color "🔧 Step 1: Setup perdu environment (mirrors GitHub Actions)" "$BLUE"
@@ -37,14 +37,14 @@ print_color "✅ Environment setup completed (simulated)" "$GREEN"
 print_color "🔧 Step 2: Initialize perdu databases (mirrors GitHub Actions)" "$BLUE"
 # This mirrors the exact steps from perdu-ci.yml lines 88-95
 print_color "Waiting for PostgreSQL to be ready..." "$YELLOW"
-until pg_isready -h localhost -p 5433 -U motia -d motia_perdu_dev; do
+until pg_isready -h localhost -p 5433 -U motia -d motia_perdu; do
     echo "Waiting for PostgreSQL to be ready..."
     sleep 2
 done
 print_color "✅ PostgreSQL is ready" "$GREEN"
 
 print_color "Running perdu database initialization..." "$YELLOW"
-PGPASSWORD=motia_perdu psql -h localhost -p 5433 -U motia -d motia_perdu_dev -f perdu/scripts/init-perdu-postgres.sql >/dev/null 2>&1
+PGPASSWORD=motia_perdu psql -h localhost -p 5433 -U motia -d motia_perdu -f perdu/scripts/init-perdu-postgres.sql >/dev/null 2>&1
 print_color "✅ Database initialization completed" "$GREEN"
 
 print_color "🔧 Step 3: Verify perdu database setup (mirrors GitHub Actions)" "$BLUE"

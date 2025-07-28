@@ -42,10 +42,10 @@ jobs:
         env:
           POSTGRES_USER: motia
           POSTGRES_PASSWORD: motia_perdu
-          POSTGRES_DB: motia_perdu_dev
+          POSTGRES_DB: motia_perdu
           POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
         options: >-
-          --health-cmd "pg_isready -U motia -d motia_perdu_dev"
+          --health-cmd "pg_isready -U motia -d motia_perdu"
           --health-interval 5s
           --health-timeout 5s
           --health-retries 5
@@ -77,7 +77,7 @@ jobs:
       PERDU_DB_PORT: 5433
       PERDU_DB_USER: motia
       PERDU_DB_PASSWORD: motia_perdu
-      PERDU_DB_NAME: motia_perdu_dev
+      PERDU_DB_NAME: motia_perdu
       PERDU_DB_TEST: motia_perdu_test
       MOTIA_DURABILITY_ENABLED: true  # Enable perdu features for E2E tests
       
@@ -94,13 +94,13 @@ jobs:
           echo "🏗️ Setting up perdu databases..."
           
           # Wait for PostgreSQL to be ready
-          until pg_isready -h localhost -p 5433 -U motia -d motia_dev; do
+          until pg_isready -h localhost -p 5433 -U motia -d motia_perdu; do
             echo "Waiting for PostgreSQL to be ready..."
             sleep 2
           done
           
           # Initialize perdu databases
-          PGPASSWORD=motia_dev psql -h localhost -p 5433 -U motia -d motia_dev -f perdu/scripts/init-perdu-postgres.sql
+          PGPASSWORD=motia_perdu psql -h localhost -p 5433 -U motia -d motia_perdu -f perdu/scripts/init-perdu-postgres.sql
           
           # Verify database setup
           cd perdu
@@ -150,10 +150,11 @@ jobs:
           # Test that playground is responding
           curl -f http://localhost:3000 >/dev/null 2>&1 || { echo "❌ Playground not responding"; exit 1; }
           
-          # Verify perdu tables exist
-          PGPASSWORD=motia_dev psql -h localhost -p 5433 -U motia -d motia_state_dev -c "\dt" | grep -q "motia_state" || { echo "❌ State table not found"; exit 1; }
-          PGPASSWORD=motia_dev psql -h localhost -p 5433 -U motia -d motia_events_dev -c "\dt" | grep -q "motia_events" || { echo "❌ Events table not found"; exit 1; }
-          PGPASSWORD=motia_dev psql -h localhost -p 5433 -U motia -d motia_execution_dev -c "\dt" | grep -q "motia_workflows" || { echo "❌ Execution table not found"; exit 1; }
+          # Verify perdu tables exist (all in single motia_perdu database)
+          PGPASSWORD=motia_perdu psql -h localhost -p 5433 -U motia -d motia_perdu -c "\dt" | grep -q "motia_state" || { echo "❌ State table not found"; exit 1; }
+          PGPASSWORD=motia_perdu psql -h localhost -p 5433 -U motia -d motia_perdu -c "\dt" | grep -q "motia_events" || { echo "❌ Events table not found"; exit 1; }
+          PGPASSWORD=motia_perdu psql -h localhost -p 5433 -U motia -d motia_perdu -c "\dt" | grep -q "motia_workflows" || { echo "❌ Execution table not found"; exit 1; }
+          PGPASSWORD=motia_perdu psql -h localhost -p 5433 -U motia -d motia_perdu -c "\dt" | grep -q "motia_traces" || { echo "❌ Traces table not found"; exit 1; }
           
           echo "✅ All perdu integration tests passed!"
 
@@ -165,8 +166,8 @@ jobs:
           redis-cli -p 6379 -a pingpong ping | grep -q "PONG" || { echo "❌ Redis connectivity broken"; exit 1; }
           
           # Verify perdu uses separate PostgreSQL port
-          ! pg_isready -h localhost -p 5432 -U motia -d motia_dev 2>/dev/null || { echo "❌ perdu shouldn't use default PostgreSQL port"; exit 1; }
-          pg_isready -h localhost -p 5433 -U motia -d motia_dev || { echo "❌ perdu PostgreSQL not accessible"; exit 1; }
+          ! pg_isready -h localhost -p 5432 -U motia -d motia_perdu 2>/dev/null || { echo "❌ perdu shouldn't use default PostgreSQL port"; exit 1; }
+          pg_isready -h localhost -p 5433 -U motia -d motia_perdu || { echo "❌ perdu PostgreSQL not accessible"; exit 1; }
           
           echo "✅ perdu environment isolation verified!"
 

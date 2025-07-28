@@ -40,7 +40,7 @@ docker compose -f docker-compose.ci-test.yml up -d perdu-postgres >/dev/null 2>&
 print_color "Waiting for PostgreSQL to be ready..." "$YELLOW"
 timeout=30
 while [ $timeout -gt 0 ]; do
-    if docker exec perdu-ci-postgres pg_isready -U motia -d motia_perdu_dev >/dev/null 2>&1; then
+    if docker exec perdu-ci-postgres pg_isready -U motia -d motia_perdu >/dev/null 2>&1; then
         print_color "✅ PostgreSQL is ready!" "$GREEN"
         break
     fi
@@ -55,7 +55,7 @@ fi
 
 # Initialize database with new schema
 print_color "Initializing database with updated schema..." "$YELLOW"
-if docker exec perdu-ci-postgres psql -U motia -d motia_perdu_dev -f /workspace/perdu/scripts/init-perdu-postgres.sql >/dev/null 2>&1; then
+if docker exec perdu-ci-postgres psql -U motia -d motia_perdu -f /workspace/perdu/scripts/init-perdu-postgres.sql >/dev/null 2>&1; then
     print_color "✅ Database initialization successful!" "$GREEN"
 else
     print_color "❌ Database initialization failed!" "$RED"
@@ -70,7 +70,7 @@ if docker run --rm --network perdu_perdu-ci-network \
     -e PERDU_DB_PORT=5432 \
     -e PERDU_DB_USER=motia \
     -e PERDU_DB_PASSWORD=motia_perdu \
-    -e PERDU_DB_NAME=motia_perdu_dev \
+    -e PERDU_DB_NAME=motia_perdu \
     --mount type=bind,source="$(pwd)",target=/workspace \
     postgres:15 \
     bash -c "
@@ -93,7 +93,7 @@ print_color "Testing exact GitHub Actions workflow step..." "$YELLOW"
 if docker run --rm --network perdu_perdu-ci-network \
     -e PGPASSWORD=motia_perdu \
     postgres:15 \
-    psql -h perdu-postgres -p 5432 -U motia -d motia_perdu_dev -c "
+    psql -h perdu-postgres -p 5432 -U motia -d motia_perdu -c "
         SELECT 'motia_state' as table_name, COUNT(*) as count FROM motia_state
         UNION ALL
         SELECT 'motia_events' as table_name, COUNT(*) as count FROM motia_events

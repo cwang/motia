@@ -3,11 +3,11 @@
 -- Designed for GCP Cloud Run, AWS Lambda, and Kubernetes deployments
 
 -- Create databases for different stages (single database approach)
-CREATE DATABASE motia_perdu_dev;
+CREATE DATABASE motia_perdu;
 CREATE DATABASE motia_perdu_test;
 
 -- Switch to perdu development database - contains ALL tables
-\c motia_perdu_dev;
+\c motia_perdu;
 
 -- State storage table
 CREATE TABLE IF NOT EXISTS motia_state (

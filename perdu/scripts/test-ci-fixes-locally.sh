@@ -60,7 +60,7 @@ docker compose -f docker-compose.ci-test.yml up -d perdu-postgres
 print_color "Waiting for PostgreSQL to be ready..." "$YELLOW"
 timeout=30
 while [ $timeout -gt 0 ]; do
-    if docker exec perdu-ci-postgres pg_isready -U motia -d motia_perdu_dev >/dev/null 2>&1; then
+    if docker exec perdu-ci-postgres pg_isready -U motia -d motia_perdu >/dev/null 2>&1; then
         print_color "✅ PostgreSQL is ready!" "$GREEN"
         break
     fi
@@ -80,7 +80,7 @@ print_color "🔍 Testing Database Connection (mirrors GitHub Actions)" "$BLUE"
 if docker run --rm --network perdu_perdu-ci-network \
     -e PGPASSWORD=motia_perdu \
     postgres:15 \
-    psql -h perdu-postgres -p 5432 -U motia -d motia_perdu_dev -c "SELECT version();" >/dev/null 2>&1; then
+    psql -h perdu-postgres -p 5432 -U motia -d motia_perdu -c "SELECT version();" >/dev/null 2>&1; then
     print_color "✅ Database connection works!" "$GREEN"
 else
     print_color "❌ Database connection failed!" "$RED"
