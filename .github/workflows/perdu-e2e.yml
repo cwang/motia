@@ -1,0 +1,180 @@
+# FORK-ISOLATED WORKFLOW  
+# This workflow is specific to our fork and will NOT interfere with upstream motia.dev CI
+# It only triggers on perdu-specific changes and maintains complete isolation
+# Safe for frequent upstream syncing without conflicts
+
+name: Perdu E2E Tests (Fork-Isolated)
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'perdu/**'
+      - '.github/workflows/perdu-*.yml'
+      - '.github/actions/setup-perdu/**'
+    # NOTE: Only trigger on perdu changes to avoid interfering with upstream
+    # Upstream motia.dev changes will be tested by their own workflows
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to run perdu E2E tests against'
+        required: true
+        default: 'main'
+        type: string
+      debug:
+        description: 'Enable debug output'
+        required: false
+        default: 'false'
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  perdu-e2e-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    
+    services:
+      # Perdu PostgreSQL service
+      perdu-postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: motia
+          POSTGRES_PASSWORD: motia_perdu
+          POSTGRES_DB: motia_perdu
+          POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
+        options: >-
+          --health-cmd "pg_isready -U motia -d motia_perdu"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5433:5432
+          
+    env:
+      CI: true
+      NODE_ENV: test
+      MOTIA_ANALYTICS_DISABLED: true
+      
+      # Perdu-specific environment
+      PERDU_DB_HOST: localhost
+      PERDU_DB_PORT: 5433
+      PERDU_DB_USER: motia
+      PERDU_DB_PASSWORD: motia_perdu
+      PERDU_DB_NAME: motia_perdu
+      PERDU_DB_TEST: motia_perdu_test
+      MOTIA_DURABILITY_ENABLED: true  # Enable perdu features for E2E tests
+      
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.branch || github.ref }}
+
+      - name: Setup perdu environment
+        uses: ./.github/actions/setup-perdu
+
+      - name: Initialize perdu databases
+        run: |
+          echo "🏗️ Setting up perdu databases..."
+          
+          # Wait for PostgreSQL to be ready
+          until pg_isready -h localhost -p 5433 -U motia -d motia_perdu; do
+            echo "Waiting for PostgreSQL to be ready..."
+            sleep 2
+          done
+          
+          # Initialize perdu databases
+          PGPASSWORD=motia_perdu psql -h localhost -p 5433 -U motia -d motia_perdu -f perdu/scripts/init-perdu-postgres.sql
+          
+          # Verify database setup
+          cd perdu
+          PERDU_DB_PORT=5433 ./scripts/test-perdu-connection.sh
+          
+          echo "✅ Perdu databases initialized successfully"
+
+      - name: Setup playground with perdu
+        run: |
+          echo "🎮 Setting up playground with perdu integration..."
+          cd playground
+          
+          # Setup Python environment
+          pnpm python-setup
+          
+          # Install motia CLI
+          npx motia install
+          
+          echo "✅ Playground setup completed"
+
+      - name: Start playground with perdu enabled
+        run: |
+          echo "🚀 Starting playground with perdu features enabled..."
+          cd playground
+          
+          # Start playground in background with perdu enabled
+          MOTIA_DURABILITY_ENABLED=true pnpm run dev &
+          PLAYGROUND_PID=$!
+          echo $PLAYGROUND_PID > playground.pid
+          
+          # Wait for playground to be ready
+          echo "Waiting for playground server to start..."
+          timeout 90 bash -c 'until curl -f http://localhost:3000 >/dev/null 2>&1; do sleep 2; done'
+          echo "✅ Playground server is ready with perdu integration!"
+
+      - name: Run perdu integration tests
+        run: |
+          echo "🧪 Running perdu integration tests..."
+          
+          # Test that perdu components are working
+          # This will be expanded in implementation PRs
+          
+          # Test database connectivity
+          cd perdu
+          ./scripts/test-perdu-connection.sh
+          
+          # Test that playground is responding
+          curl -f http://localhost:3000 >/dev/null 2>&1 || { echo "❌ Playground not responding"; exit 1; }
+          
+          # Verify perdu tables exist (all in single motia_perdu database)
+          PGPASSWORD=motia_perdu psql -h localhost -p 5433 -U motia -d motia_perdu -c "\dt" | grep -q "motia_state" || { echo "❌ State table not found"; exit 1; }
+          PGPASSWORD=motia_perdu psql -h localhost -p 5433 -U motia -d motia_perdu -c "\dt" | grep -q "motia_events" || { echo "❌ Events table not found"; exit 1; }
+          PGPASSWORD=motia_perdu psql -h localhost -p 5433 -U motia -d motia_perdu -c "\dt" | grep -q "motia_workflows" || { echo "❌ Execution table not found"; exit 1; }
+          PGPASSWORD=motia_perdu psql -h localhost -p 5433 -U motia -d motia_perdu -c "\dt" | grep -q "motia_traces" || { echo "❌ Traces table not found"; exit 1; }
+          
+          echo "✅ All perdu integration tests passed!"
+
+      - name: Test perdu PostgreSQL isolation
+        run: |
+          echo "🔒 Testing perdu PostgreSQL isolation..."
+          
+          # Verify perdu uses separate PostgreSQL port (not default 5432)
+          ! pg_isready -h localhost -p 5432 -U motia -d motia_perdu 2>/dev/null || { echo "❌ perdu shouldn't use default PostgreSQL port"; exit 1; }
+          pg_isready -h localhost -p 5433 -U motia -d motia_perdu || { echo "❌ perdu PostgreSQL not accessible"; exit 1; }
+          
+          echo "✅ perdu PostgreSQL isolation verified!"
+
+      - name: Cleanup
+        if: always()
+        run: |
+          echo "🧹 Cleaning up test environment..."
+          
+          # Stop playground server
+          if [[ -f playground/playground.pid ]]; then
+            kill $(cat playground/playground.pid) || true
+          fi
+          
+          # Kill any remaining processes
+          pkill -f "pnpm run dev" || true
+          pkill -f "node.*3000" || true
+          
+          echo "✅ Cleanup completed"
+
+      - name: Upload test artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: perdu-e2e-test-results-${{ github.event.number || 'manual' }}
+          path: |
+            perdu/logs/
+            playground/motia-dev.log
+          retention-days: 7

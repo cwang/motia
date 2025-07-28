@@ -1,0 +1,30 @@
+# Perdu-specific gitignore
+# Prevent committing actual environment files with passwords
+
+# Local environment files with actual passwords
+.env.perdu.local
+.env.*.local
+
+# Allow example files to be committed
+!.env.*.example
+
+# Database data and logs
+data/
+logs/
+*.log
+
+# Node modules (if any perdu-specific packages)
+node_modules/
+
+# Docker volumes and temporary files
+postgres_data/
+pgadmin_data/
+.docker/
+
+# IDE and system files
+.DS_Store
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
