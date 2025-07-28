@@ -52,24 +52,9 @@ jobs:
         ports:
           - 5433:5432
           
-      # Redis for existing motia.dev functionality
-      redis:
-        image: redis/redis-stack:latest
-        env:
-          REDIS_ARGS: --requirepass pingpong
-        options: >-
-          --health-cmd "redis-cli --raw incr ping"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 6379:6379
-
     env:
       CI: true
       NODE_ENV: test
-      # Standard motia.dev environment
-      REDIS_URL: "redis://:pingpong@localhost:6379"
       MOTIA_ANALYTICS_DISABLED: true
       
       # Perdu-specific environment
@@ -158,21 +143,15 @@ jobs:
           
           echo "✅ All perdu integration tests passed!"
 
-      - name: Test perdu environment isolation
+      - name: Test perdu PostgreSQL isolation
         run: |
-          echo "🔒 Testing perdu environment isolation..."
+          echo "🔒 Testing perdu PostgreSQL isolation..."
           
-          # Install redis-cli for testing
-          sudo apt-get update -qq && sudo apt-get install -y redis-tools
-          
-          # Verify perdu doesn't interfere with existing Redis setup
-          redis-cli -p 6379 -a pingpong ping | grep -q "PONG" || { echo "❌ Redis connectivity broken"; exit 1; }
-          
-          # Verify perdu uses separate PostgreSQL port
+          # Verify perdu uses separate PostgreSQL port (not default 5432)
           ! pg_isready -h localhost -p 5432 -U motia -d motia_perdu 2>/dev/null || { echo "❌ perdu shouldn't use default PostgreSQL port"; exit 1; }
           pg_isready -h localhost -p 5433 -U motia -d motia_perdu || { echo "❌ perdu PostgreSQL not accessible"; exit 1; }
           
-          echo "✅ perdu environment isolation verified!"
+          echo "✅ perdu PostgreSQL isolation verified!"
 
       - name: Cleanup
         if: always()

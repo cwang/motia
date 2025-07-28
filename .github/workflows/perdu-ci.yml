@@ -52,19 +52,6 @@ jobs:
           --health-retries 5
         ports:
           - 5433:5432
-          
-      # Redis for existing motia.dev tests (unchanged)
-      redis:
-        image: redis/redis-stack:latest
-        env:
-          REDIS_ARGS: --requirepass pingpong
-        options: >-
-          --health-cmd "redis-cli --raw incr ping"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 6379:6379
 
     env:
       CI: true

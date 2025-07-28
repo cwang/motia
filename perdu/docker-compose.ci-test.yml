@@ -27,22 +27,6 @@ services:
     networks:
       - perdu-ci-network
 
-  # Redis service - mirrors GitHub Actions redis service  
-  redis:
-    image: redis/redis-stack:latest
-    container_name: perdu-ci-redis
-    environment:
-      REDIS_ARGS: --requirepass pingpong
-    healthcheck:
-      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-    ports:
-      - "6379:6379"
-    networks:
-      - perdu-ci-network
-
   # CI Test Runner - mirrors GitHub Actions ubuntu-latest environment
   ci-test-runner:
     build:
@@ -51,8 +35,6 @@ services:
     container_name: perdu-ci-runner
     depends_on:
       perdu-postgres:
-        condition: service_healthy
-      redis:
         condition: service_healthy
     environment:
       # Mirror exact GitHub Actions environment variables
@@ -66,9 +48,6 @@ services:
       PERDU_DB_PASSWORD: motia_perdu
       PERDU_DB_NAME: motia_perdu
       PERDU_DB_TEST: motia_perdu_test
-      
-      # Redis environment (mirrors GitHub Actions)
-      REDIS_URL: "redis://:pingpong@redis:6379"
       MOTIA_ANALYTICS_DISABLED: true
       
     volumes:
