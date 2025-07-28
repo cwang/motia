@@ -162,6 +162,9 @@ jobs:
         run: |
           echo "🔒 Testing perdu environment isolation..."
           
+          # Install redis-cli for testing
+          sudo apt-get update -qq && sudo apt-get install -y redis-tools
+          
           # Verify perdu doesn't interfere with existing Redis setup
           redis-cli -p 6379 -a pingpong ping | grep -q "PONG" || { echo "❌ Redis connectivity broken"; exit 1; }
           
